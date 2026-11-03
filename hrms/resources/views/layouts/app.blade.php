@@ -383,6 +383,12 @@
                 <span>Payroll</span>
             </a>
 
+            <div class="nav-section-title">SELF-SERVICE</div>
+            <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') || request()->routeIs('portal*') ? 'active' : '' }}">
+                <i class="bi bi-person-badge"></i>
+                <span>Employee Portal</span>
+            </a>
+
             <div class="nav-section-title">OTHER</div>
             <a href="#" class="nav-link-custom d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">

@@ -27,6 +27,15 @@ class Employee extends Model
         'employment_type',
         'status',
         'salary',
+        'face_descriptor',
+        'face_snapshot',
+        'face_enrolled_at',
+        'face_biometric_id',
+    ];
+
+    protected $casts = [
+        'face_descriptor' => 'array',
+        'face_enrolled_at' => 'datetime',
     ];
 
     public function tenant()

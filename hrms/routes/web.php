@@ -7,6 +7,7 @@ use App\Http\Controllers\LeaveController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ShiftScheduleController;
 use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\EmployeeDashboardController;
 use App\Http\Controllers\PageController;
 
 // Default Landing / Redirect
@@ -20,9 +21,14 @@ Auth::routes();
 // Tenant Switcher
 Route::post('/tenant/switch', [DashboardController::class, 'switchTenant'])->name('tenant.switch');
 
-// Dashboard (Screenshot 1: EasyTeam)
+// Dashboard (Screenshot 1: EasyTeam HR Admin)
 Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.view');
+
+// Employee Self-Service Dashboard / Portal
+Route::get('/portal', [EmployeeDashboardController::class, 'index'])->name('portal.dashboard');
+Route::get('/employee/dashboard', [EmployeeDashboardController::class, 'index'])->name('employee.dashboard');
+Route::post('/employee/enroll-face', [EmployeeDashboardController::class, 'enrollFace'])->name('employee.enroll-face');
 
 // Employee Management
 Route::prefix('employees')->group(function () {
