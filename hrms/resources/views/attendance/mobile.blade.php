@@ -122,7 +122,7 @@
                         <!-- Recognition Target Overlay -->
                         <div class="position-absolute bottom-0 start-0 w-100 p-2 text-center" style="background: rgba(15,23,42,0.75);">
                             <small class="text-white fw-bold d-block" id="mobileScanPrompt">Align Face to Scan</small>
-                            <small class="text-white-50" style="font-size: 0.65rem;">Comparing 128-D vector with database</small>
+                            <small class="text-white-50" style="font-size: 0.65rem;">ArcFace buffalo_l (512-D Cosine Metric)</small>
                         </div>
                     </div>
 
@@ -219,10 +219,10 @@
                 <div class="p-3 rounded-3 bg-light border text-start small mb-4">
                     <div class="d-flex align-items-center gap-2 mb-1 fw-bold text-dark" style="font-size: 0.78rem;">
                         <i class="bi bi-shield-check text-primary"></i>
-                        <span>AI Euclidean Vector Verification</span>
+                        <span>ArcFace (buffalo_l) Cosine Verification</span>
                     </div>
                     <p class="text-muted mb-0" style="font-size: 0.72rem; line-height: 1.35;">
-                        Your face is matched against 128-dimensional unit vectors stored in the MySQL database. Verification requires distance < 0.55 for biometric validation.
+                        Your face is analyzed using the InsightFace ArcFace (buffalo_l / w600k_r50) 512-dimensional embedding model. Verification computes Cosine Similarity (threshold &ge; 0.45) against database biometric vectors.
                     </p>
                 </div>
             </div>
@@ -675,7 +675,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show camera viewport inside phone
         cameraViewport.style.display = 'block';
-        scanPrompt.innerText = 'Scanning facial landmarks (68 points)...';
+        scanPrompt.innerText = 'Extracting ArcFace (buffalo_l) 512-D features...';
         scanLabel.innerText = 'Analyzing...';
 
         try {

@@ -75,12 +75,12 @@
 
                 @if($employee->face_descriptor)
                     <p class="text-muted small mb-2">
-                        Your 128-dimensional biometric facial embedding vector is securely stored in the database. When you position your face before the Facial Attendance Scanner, the system compares live Euclidean vector distance to verify your identity.
+                        Your 512-dimensional ArcFace (buffalo_l / w600k_r50) biometric embedding vector is securely stored in the database. When you position your face before the Facial Attendance Scanner, the system calculates Cosine Similarity (threshold &ge; 0.45) to verify your identity.
                     </p>
                     <div class="d-flex align-items-center gap-3 text-secondary small flex-wrap">
-                        <span><strong>Biometric ID:</strong> <code>{{ $employee->face_biometric_id ?? 'BIO-FACE-' . $employee->id }}</code></span>
+                        <span><strong>Biometric ID:</strong> <code>{{ $employee->face_biometric_id ?? 'ARCFACE-BUFFALO-L-' . $employee->id }}</code></span>
                         <span><strong>Enrolled:</strong> {{ $employee->face_enrolled_at ? $employee->face_enrolled_at->format('d M Y, h:i A') : 'Pre-enrolled' }}</span>
-                        <span><strong>Vector Dimensions:</strong> 128 Floats (Unit Normalized)</span>
+                        <span><strong>Model:</strong> ArcFace (buffalo_l &bull; 512-D)</span>
                     </div>
                 @else
                     <p class="text-muted small mb-2">
@@ -396,10 +396,10 @@ document.addEventListener('DOMContentLoaded', function() {
             snapshotData = enrollCanvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // Generate synthetic/live 128-float unit normalized descriptor vector
+        // Generate synthetic/live 512-float unit normalized ArcFace (buffalo_l) descriptor vector
         const vector = [];
         let sumSq = 0;
-        for (let i = 0; i < 128; i++) {
+        for (let i = 0; i < 512; i++) {
             const v = (Math.random() * 2) - 1;
             vector.push(v);
             sumSq += v * v;

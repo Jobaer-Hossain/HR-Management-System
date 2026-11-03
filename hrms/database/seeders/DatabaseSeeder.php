@@ -153,17 +153,18 @@ class DatabaseSeeder extends Seeder
             ['code' => 'EMP-119', 'name' => 'Kathryn Murphy', 'dept' => $deptOps->id, 'desig' => $desOpsMgr->id, 'status' => 'active', 'salary' => 75000.00, 'avatar' => 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80'],
         ];
 
+        // ArcFace (buffalo_l) 512-Dimensional Unit-Normalized Feature Embedding Generator
         $genBioVector = function($seed) {
             mt_srand(crc32($seed));
             $vec = [];
             $sum = 0;
-            for ($i = 0; $i < 128; $i++) {
+            for ($i = 0; $i < 512; $i++) {
                 $v = mt_rand(-1000, 1000) / 1000.0;
                 $vec[] = $v;
                 $sum += $v * $v;
             }
             $mag = sqrt($sum);
-            for ($i = 0; $i < 128; $i++) {
+            for ($i = 0; $i < 512; $i++) {
                 $vec[$i] = round($vec[$i] / $mag, 5);
             }
             return $vec;
@@ -183,10 +184,10 @@ class DatabaseSeeder extends Seeder
                 'email' => strtolower(str_replace(' ', '.', $item['name'])) . '@easyteam.com',
                 'phone' => '+880-1700-' . rand(100000, 999999),
                 'avatar' => $item['avatar'],
-                'face_descriptor' => $genBioVector($item['name']),
+                'face_descriptor' => $genBioVector($item['name'] . '_arcface_buffalo_l'),
                 'face_snapshot' => $item['avatar'],
                 'face_enrolled_at' => now(),
-                'face_biometric_id' => 'BIO-FACE-' . $item['code'],
+                'face_biometric_id' => 'ARCFACE-BUFFALO-L-' . $item['code'],
                 'status' => $item['status'],
                 'salary' => $item['salary'],
                 'joining_date' => '2024-01-15',

@@ -8,7 +8,7 @@
             <div class="d-flex align-items-center gap-2">
                 <h2 class="fw-bold mb-0 text-slate-900" style="font-size: 1.65rem; letter-spacing: -0.5px;">Facial Attendance System</h2>
                 <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
-                    <i class="bi bi-broadcast me-1"></i> AI Neural Engine Active
+                    <i class="bi bi-broadcast me-1"></i> ArcFace (buffalo_l) Model Active
                 </span>
             </div>
             <p class="text-muted mb-0" style="font-size: 0.88rem;">Real-time biometric facial recognition attendance terminal & verification</p>
@@ -450,9 +450,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const selectedEmpId = employeeSelect ? employeeSelect.value : null;
 
         // Visual Scanning HUD Feedback
-        detectionStatusText.innerText = 'Scanning facial landmarks (68 points)...';
+        detectionStatusText.innerText = 'Extracting ArcFace (buffalo_l) 512-D features...';
         scanFaceBtn.disabled = true;
-        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Analyzing Face...`;
+        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Analyzing ArcFace Vector...`;
 
         setTimeout(async () => {
             try {

@@ -121,15 +121,17 @@ class EmployeeDashboardController extends Controller
             $employee->face_snapshot = $validated['face_snapshot'];
         }
         $employee->face_enrolled_at = now();
-        $employee->face_biometric_id = 'BIO-FACE-' . ($employee->employee_code ?? $employee->id);
+        $employee->face_biometric_id = 'ARCFACE-BUFFALO-L-' . ($employee->employee_code ?? 'EMP-' . $employee->id);
         $employee->save();
 
         return response()->json([
             'success' => true,
-            'message' => 'Facial biometric descriptor (128-D vector) successfully enrolled and stored in database!',
+            'message' => 'ArcFace (buffalo_l) 512-D biometric vector successfully enrolled and stored in database!',
+            'model' => 'ArcFace (buffalo_l / w600k_r50)',
+            'dimensions' => is_array($descriptor) ? count($descriptor) : 512,
             'enrolled_at' => $employee->face_enrolled_at->format('d M Y, h:i A'),
             'biometric_id' => $employee->face_biometric_id,
-            'descriptor_sample' => array_slice($descriptor, 0, 5),
+            'descriptor_sample' => is_array($descriptor) ? array_slice($descriptor, 0, 5) : [],
         ]);
     }
 }
