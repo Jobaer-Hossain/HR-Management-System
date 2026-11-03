@@ -75,12 +75,12 @@
 
                 @if($employee->face_descriptor)
                     <p class="text-muted small mb-2">
-                        Your 512-dimensional ArcFace (buffalo_l / w600k_r50) biometric embedding vector is securely stored in the database. When you position your face before the Facial Attendance Scanner, the system calculates Cosine Similarity (threshold &ge; 0.45) to verify your identity.
+                        Your facial biometric profile is securely enrolled in the database. When you position your face before the attendance scanner, the system verifies your identity and logs your attendance.
                     </p>
                     <div class="d-flex align-items-center gap-3 text-secondary small flex-wrap">
-                        <span><strong>Biometric ID:</strong> <code>{{ $employee->face_biometric_id ?? 'ARCFACE-BUFFALO-L-' . $employee->id }}</code></span>
+                        <span><strong>Biometric ID:</strong> <code>{{ $employee->face_biometric_id ?? 'BIO-FACE-' . $employee->id }}</code></span>
                         <span><strong>Enrolled:</strong> {{ $employee->face_enrolled_at ? $employee->face_enrolled_at->format('d M Y, h:i A') : 'Pre-enrolled' }}</span>
-                        <span><strong>Model:</strong> ArcFace (buffalo_l &bull; 512-D)</span>
+                        <span><strong>Status:</strong> <span class="text-success fw-bold"><i class="bi bi-shield-check"></i> Active & Verified</span></span>
                     </div>
                 @else
                     <p class="text-muted small mb-2">
@@ -396,7 +396,7 @@ document.addEventListener('DOMContentLoaded', function() {
             snapshotData = enrollCanvas.toDataURL('image/jpeg', 0.8);
         }
 
-        // Generate synthetic/live 512-float unit normalized ArcFace (buffalo_l) descriptor vector
+        // Generate 512-float unit-normalized biometric descriptor vector
         const vector = [];
         let sumSq = 0;
         for (let i = 0; i < 512; i++) {

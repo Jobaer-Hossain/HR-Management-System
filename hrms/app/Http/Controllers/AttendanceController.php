@@ -153,11 +153,11 @@ class AttendanceController extends Controller
         if (!$scannedDescriptor || ($inputDim !== 512 && $inputDim !== 128)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid facial descriptor captured. Expected 512-dimensional ArcFace (buffalo_l) embedding vector.'
+                'message' => 'Invalid or incomplete facial scan captured. Please ensure your face is clearly visible in the camera.'
             ], 422);
         }
 
-        // ARCFACE (buffalo_l) VERIFICATION ALGORITHM: Cosine Similarity Matching
+        // Facial Biometric Verification Algorithm: Cosine Similarity Matching
         $bestMatch = null;
         $bestSimilarity = -1.0;
 
@@ -198,7 +198,7 @@ class AttendanceController extends Controller
         if (!$bestMatch || $bestSimilarity < $matchThreshold) {
             return response()->json([
                 'success' => false,
-                'message' => 'ArcFace Biometric Verification Failed! Cosine similarity is ' . round($bestSimilarity, 3) . ' (Threshold: ' . $matchThreshold . '). No matching facial identity found in the database. Please enroll first!'
+                'message' => 'Biometric Verification Failed! No matching facial profile found in the database. Please try again or enroll your face first.'
             ], 401);
         }
 
@@ -257,9 +257,8 @@ class AttendanceController extends Controller
             'message' => $message,
             'action' => $action,
             'confidence' => $similarityPct . '%',
-            'cosine_similarity' => round($bestSimilarity, 4),
-            'biometric_model' => 'ArcFace (buffalo_l / w600k_r50)',
-            'biometric_id' => $employee->face_biometric_id ?? 'ARCFACE-BUFFALO-L-' . $employee->id,
+            'biometric_status' => 'verified',
+            'biometric_id' => $employee->face_biometric_id ?? 'BIO-FACE-' . $employee->id,
             'employee' => [
                 'id' => $employee->id,
                 'name' => $employee->name,

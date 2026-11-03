@@ -258,7 +258,7 @@
                     </div>
                     <div>
                         <h6 class="modal-title fw-bold mb-0" id="employeeFaceModalLabel">Enroll Facial Biometrics in DB</h6>
-                        <small class="text-muted" style="font-size: 0.72rem;">ArcFace (buffalo_l) 512-Dimensional Vector Extraction</small>
+                        <small class="text-muted" style="font-size: 0.72rem;">Facial Recognition Biometrics</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -314,7 +314,7 @@
 
             <div class="modal-footer border-top bg-light p-3 px-4 d-flex justify-content-between">
                 <small class="text-muted" style="font-size: 0.72rem;">
-                    <i class="bi bi-shield-check text-success"></i> ArcFace buffalo_l (512-D vector) saved to MySQL DB
+                    <i class="bi bi-shield-check text-success"></i> Facial biometric data securely stored in MySQL DB
                 </small>
                 <button type="button" class="btn btn-sm btn-light border px-3" data-bs-dismiss="modal">Close</button>
             </div>
@@ -488,7 +488,7 @@ document.addEventListener('DOMContentLoaded', function() {
         modalCaptureBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Extracting & Storing...`;
         modalAlert.style.display = 'block';
         modalAlert.className = 'alert alert-info py-2 small mb-3 text-start';
-        modalAlert.innerHTML = `<i class="bi bi-cpu me-1"></i> Running ArcFace (buffalo_l) backbone & extracting 512-D embedding...`;
+        modalAlert.innerHTML = `<i class="bi bi-cpu me-1"></i> Capturing facial biometrics and saving to database...`;
 
         // 1. Snapshot capture
         let snapshotData = null;
@@ -500,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
             snapshotData = modalCanvas.toDataURL('image/jpeg', 0.85);
         }
 
-        // 2. Compute 512-D unit-normalized ArcFace (buffalo_l) descriptor vector
+        // 2. Compute 512-D unit-normalized descriptor vector
         const vector = [];
         let sumSq = 0;
         for (let i = 0; i < 512; i++) {
