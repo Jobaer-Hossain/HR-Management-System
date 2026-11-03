@@ -10,8 +10,8 @@
         </div>
         <div class="d-flex align-items-center gap-2">
             <a href="{{ route('attendance.mobile') }}" class="btn btn-outline-dark fw-bold px-3 py-2 d-flex align-items-center gap-2" style="border-radius: 10px; font-size: 0.88rem;">
-                <i class="bi bi-phone"></i>
-                <span>Mobile Attendance</span>
+                <i class="bi bi-person-check"></i>
+                <span>Self Check In/Out</span>
             </a>
             <a href="{{ route('employees.create') }}" class="btn btn-primary fw-bold px-3 py-2 d-flex align-items-center gap-2" style="border-radius: 10px; font-size: 0.88rem;">
                 <i class="bi bi-person-plus-fill"></i>

@@ -450,8 +450,8 @@
                     <span>Facial Scanner</span>
                 </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
-                    <i class="bi bi-phone"></i>
-                    <span>Mobile Attendance</span>
+                    <i class="bi bi-person-check"></i>
+                    <span>Self Check In/Out</span>
                 </a>
                 <div class="nav-section-title">SELF-SERVICE</div>
                 <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') ? 'active' : '' }}">
@@ -498,8 +498,8 @@
                     <span>Live Face Scanner</span>
                 </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
-                    <i class="bi bi-phone"></i>
-                    <span>Mobile Attendance</span>
+                    <i class="bi bi-person-check"></i>
+                    <span>Self Check In/Out</span>
                 </a>
                 <a href="{{ route('leaves.apply') }}" class="nav-link-custom {{ request()->routeIs('leaves.apply') ? 'active' : '' }}">
                     <i class="bi bi-send-plus"></i>
@@ -542,8 +542,8 @@
                     <span>Facial Scanner</span>
                 </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
-                    <i class="bi bi-phone"></i>
-                    <span>Mobile Attendance</span>
+                    <i class="bi bi-person-check"></i>
+                    <span>Self Check In/Out</span>
                 </a>
                 <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
                     <i class="bi bi-calendar-week"></i>
@@ -619,6 +619,9 @@
             <!-- Top Role Context Strip (SRS Section 6: Role Based Access & Testing Bar) -->
             <div class="d-flex align-items-center justify-content-between p-2 px-3 mb-4 rounded-3 bg-white border shadow-sm flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-light btn-sm d-lg-none border py-1 px-2" id="mobileNavToggleBtn" type="button" title="Toggle Navigation Menu">
+                        <i class="bi bi-list fs-5"></i>
+                    </button>
                     <span class="badge" style="background-color: {{ $activeRoleData['color'] }}; color: white; font-size: 0.72rem; padding: 5px 9px;">
                         <i class="bi {{ $activeRoleData['icon'] }} me-1"></i> CURRENT ROLE
                     </span>
@@ -690,6 +693,29 @@
 
     <!-- Bootstrap 5 JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const sidebar = document.getElementById('sidebar');
+        const mobileToggle = document.getElementById('mobileNavToggleBtn');
+        const sidebarToggle = document.getElementById('sidebarToggle');
+
+        function toggleSidebar(e) {
+            if (e) e.stopPropagation();
+            if (sidebar) sidebar.classList.toggle('show');
+        }
+
+        if (mobileToggle) mobileToggle.addEventListener('click', toggleSidebar);
+        if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+
+        document.addEventListener('click', function(e) {
+            if (sidebar && sidebar.classList.contains('show')) {
+                if (!sidebar.contains(e.target) && (!mobileToggle || !mobileToggle.contains(e.target))) {
+                    sidebar.classList.remove('show');
+                }
+            }
+        });
+    });
+    </script>
     @stack('scripts')
 </body>
 </html>

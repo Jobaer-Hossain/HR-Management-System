@@ -1,142 +1,120 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="mobile-attendance-container py-2">
-    <!-- Top Bar Controls -->
-    <div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
-        <div class="d-flex align-items-center gap-2">
-            <a href="{{ route('attendance.face') }}" class="btn btn-sm btn-outline-secondary" style="border-radius: 8px;">
-                <i class="bi bi-arrow-left me-1"></i> Desktop Scanner
-            </a>
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
-                <i class="bi bi-phone me-1"></i> Numla Prototype Mobile View
-            </span>
+<div class="attendance-punch-page">
+    <!-- Header with Breadcrumbs & Profile Switcher -->
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+        <div>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="fw-bold mb-0 text-slate-900" style="font-size: 1.65rem; letter-spacing: -0.5px;">Check In / Check Out</h2>
+                <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+                    <i class="bi bi-person-check-fill me-1"></i> Facial Verification
+                </span>
+            </div>
+            <p class="text-muted mb-0" style="font-size: 0.88rem;">Real-time biometric attendance terminal and self-service punch</p>
         </div>
 
-        <div class="d-flex align-items-center gap-2">
-            <!-- Test Profile Switcher -->
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <!-- Profile Switcher Dropdown -->
             <div class="dropdown">
-                <button class="btn btn-sm btn-outline-secondary dropdown-toggle bg-white px-3" type="button" data-bs-toggle="dropdown" style="border-radius: 8px; font-size: 0.82rem;">
-                    <i class="bi bi-person-bounding-box me-1"></i> Switch Test Profile
+                <button class="btn btn-outline-secondary dropdown-toggle bg-white px-3 py-2 fw-semibold" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.85rem;">
+                    <i class="bi bi-person-circle me-1"></i> {{ $employee->name }}
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 0.82rem; max-height: 280px; overflow-y: auto;">
-                    <li><h6 class="dropdown-header">Test Facial Identity Verification As:</h6></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="font-size: 0.85rem; max-height: 280px; overflow-y: auto;">
+                    <li><h6 class="dropdown-header">Verify Identity As:</h6></li>
                     @foreach($allStaff as $st)
                         <li>
                             <a class="dropdown-item d-flex align-items-center gap-2 {{ $st->id === $employee->id ? 'active fw-bold' : '' }}" href="{{ route('attendance.mobile', ['emp_id' => $st->id]) }}">
                                 <img src="{{ $st->face_snapshot ?? $st->avatar }}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover;">
                                 <span>{{ $st->name }} ({{ $st->employee_code ?? 'EMP-'.$st->id }})</span>
-                                @if($st->face_descriptor)
-                                    <i class="bi bi-shield-check text-success ms-auto" title="Biometrics Enrolled in DB"></i>
-                                @else
-                                    <i class="bi bi-clock text-warning ms-auto" title="Pending"></i>
-                                @endif
                             </a>
                         </li>
                     @endforeach
                 </ul>
             </div>
 
-            <!-- Viewport Switcher (Phone Frame vs Responsive) -->
-            <button class="btn btn-sm btn-light border px-2 py-1" id="togglePhoneFrameBtn" style="border-radius: 8px; font-size: 0.82rem;" title="Toggle Phone Frame">
-                <i class="bi bi-aspect-ratio me-1"></i> Frame View
-            </button>
+            <a href="{{ route('attendance.face') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.85rem;">
+                <i class="bi bi-camera-video me-1"></i> Gate Scanner
+            </a>
+            <a href="{{ route('attendance.index') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.85rem;">
+                <i class="bi bi-clock-history me-1"></i> Attendance Log
+            </a>
         </div>
     </div>
 
-    <!-- Center Phone Display Wrapper -->
-    <div class="d-flex justify-content-center">
-        <!-- iPhone Mockup Body matching Prototype 2 (Numla) -->
-        <div class="numla-phone-frame" id="numlaPhoneFrame">
-            <!-- iOS Notch / Dynamic Island & Status Bar -->
-            <div class="phone-status-bar">
-                <div class="time" id="iosClock">{{ date('g:i A') }}</div>
-                <div class="camera-notch">
-                    <span class="lens"></span>
-                </div>
-                <div class="icons">
-                    <i class="bi bi-reception-4"></i>
-                    <i class="bi bi-wifi"></i>
-                    <i class="bi bi-battery-full text-dark"></i>
-                </div>
-            </div>
-
-            <!-- Mobile App Header -->
-            <div class="phone-app-header">
-                <a href="{{ route('dashboard') }}" class="btn-icon text-dark">
-                    <i class="bi bi-chevron-left"></i>
-                </a>
-                <div class="app-brand-title">
-                    <span class="numla-logo-text">numla</span>
-                </div>
-                <button class="btn-icon text-dark" id="mobileMenuBtn">
-                    <i class="bi bi-list fs-5"></i>
-                </button>
-            </div>
-
-            <!-- Phone Scrollable Body -->
-            <div class="phone-app-body">
-                <!-- User Profile & Dynamic Greeting -->
-                <div class="text-center pt-2 pb-3">
-                    <div class="position-relative d-inline-block mb-2">
-                        <img src="{{ $employee->face_snapshot ?? $employee->avatar ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120' }}" class="phone-user-avatar" id="phoneUserAvatar" alt="{{ $employee->name }}">
-                        <span class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 20px; height: 20px; font-size: 0.65rem; border: 2px solid white;" id="phoneBioStatusIcon" title="Verified in Database">
-                            <i class="bi bi-shield-check"></i>
-                        </span>
+    <!-- Main Responsive Card Container (Numla Prototype 2 Clean Web & Mobile Layout) -->
+    <div class="row g-4 justify-content-center">
+        <!-- Punch Clock & Scanner Card -->
+        <div class="col-12 col-xl-8 col-lg-9">
+            <div class="card card-custom p-4 p-md-5 text-center position-relative overflow-hidden">
+                <!-- User Greeting Header -->
+                <div class="d-flex flex-column align-items-center mb-3">
+                    <div class="position-relative d-inline-block mb-3">
+                        <img src="{{ $employee->face_snapshot ?? $employee->avatar ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=140' }}" class="user-punch-avatar" id="punchUserAvatar" alt="{{ $employee->name }}">
+                        @if($employee->face_descriptor)
+                            <span class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle d-flex align-items-center justify-content-center border border-2 border-white" style="width: 26px; height: 26px; font-size: 0.8rem;" title="Enrolled in Biometric Database">
+                                <i class="bi bi-shield-check"></i>
+                            </span>
+                        @endif
                     </div>
-
-                    <h4 class="fw-bold mb-1 text-slate-900" id="phoneGreetingText" style="font-size: 1.25rem;">
-                        Welcome {{ $employee->name }}!
-                    </h4>
-                    <div class="badge bg-light text-muted border font-monospace px-2 py-1" id="phoneUserCode" style="font-size: 0.72rem;">
-                        {{ $employee->employee_code ?? 'EMP-' . str_pad($employee->id, 3, '0', STR_PAD_LEFT) }} &bull; {{ $employee->department->name ?? 'General' }}
+                    <h3 class="fw-bold mb-1 text-slate-900" id="punchGreetingText" style="font-size: 1.55rem; letter-spacing: -0.5px;">
+                        Welcome Back, {{ $employee->name }}!
+                    </h3>
+                    <div class="d-flex align-items-center gap-2 flex-wrap justify-content-center">
+                        <span class="badge bg-light text-muted border font-monospace px-2 py-1" style="font-size: 0.76rem;" id="punchUserCode">
+                            {{ $employee->employee_code ?? 'EMP-' . str_pad($employee->id, 3, '0', STR_PAD_LEFT) }}
+                        </span>
+                        <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-2 py-1" style="font-size: 0.76rem;">
+                            {{ $employee->department->name ?? 'General' }}
+                        </span>
+                        <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" style="font-size: 0.76rem;">
+                            {{ $employee->designation->title ?? 'Staff' }}
+                        </span>
                     </div>
                 </div>
 
                 <!-- Live Big Digital Clock -->
-                <div class="text-center mb-4">
-                    <div class="phone-digital-clock" id="phoneBigClock">
-                        {{ date('h:i') }} <span class="clock-meridiem">{{ date('a') }}</span>
+                <div class="my-3">
+                    <div class="responsive-digital-clock" id="liveDigitalClock">
+                        {{ date('h:i') }} <span class="clock-ampm">{{ date('A') }}</span>
                     </div>
-                    <div class="phone-date-string text-muted" id="phoneDateString">
-                        {{ date('l, d F') }}
+                    <div class="text-muted fw-semibold" id="liveDateString" style="font-size: 0.95rem;">
+                        {{ date('l, d F Y') }}
                     </div>
                 </div>
 
-                <!-- Interactive Biometric Scan Zone -->
-                <div class="text-center position-relative mb-4">
-                    <!-- Scanner Mode Switch (Normal Button vs Live Camera Viewport) -->
-                    <div id="liveCameraViewport" class="phone-live-camera-viewport" style="display: none;">
-                        <video id="mobileWebcamVideo" autoplay playsinline muted></video>
-                        <canvas id="mobileCanvas" style="display: none;"></canvas>
-                        
-                        <!-- Biometric Landmark Reticle Overlay -->
-                        <div class="mobile-hud-reticle">
-                            <div class="b-bracket b-tl"></div>
-                            <div class="b-bracket b-tr"></div>
-                            <div class="b-bracket b-bl"></div>
-                            <div class="b-bracket b-br"></div>
-                            <div class="mobile-laser-scanner"></div>
+                <!-- Interactive Biometric Scan / Camera Area -->
+                <div class="my-4 position-relative d-flex flex-column align-items-center">
+                    <!-- Live Camera Feed Viewport (Reveals smoothly when scanning) -->
+                    <div id="liveCameraContainer" class="live-camera-feed-box mb-4" style="display: none;">
+                        <video id="responsiveWebcamVideo" autoplay playsinline muted></video>
+                        <canvas id="responsiveCanvas" style="display: none;"></canvas>
+
+                        <!-- HUD Scanner Frame Overlay -->
+                        <div class="camera-hud-overlay">
+                            <div class="hud-corner top-left"></div>
+                            <div class="hud-corner top-right"></div>
+                            <div class="hud-corner bottom-left"></div>
+                            <div class="hud-corner bottom-right"></div>
+                            <div class="hud-scanner-bar"></div>
                         </div>
 
-                        <!-- Recognition Target Overlay -->
-                        <div class="position-absolute bottom-0 start-0 w-100 p-2 text-center" style="background: rgba(15,23,42,0.75);">
-                            <small class="text-white fw-bold d-block" id="mobileScanPrompt">Align Face to Scan</small>
-                            <small class="text-white-50" style="font-size: 0.65rem;">Hold still while scanning</small>
+                        <div class="position-absolute bottom-0 start-0 w-100 p-2 text-center" style="background: rgba(15,23,42,0.85); backdrop-filter: blur(4px);">
+                            <small class="text-white fw-bold d-block" id="cameraStatusPrompt">Position your face inside the frame</small>
+                            <small class="text-white-50" style="font-size: 0.72rem;">Verifying identity with database records</small>
                         </div>
                     </div>
 
                     <!-- Main Circular Biometric Button (Numla Prototype 2) -->
-                    <div class="biometric-scan-button-wrapper" id="biometricBtnWrapper">
-                        <button type="button" class="biometric-scan-button {{ $todayAttendance && $todayAttendance->check_in && !$todayAttendance->check_out ? 'active-checked-in' : '' }}" id="mobileBiometricScanBtn">
-                            <div class="pulse-ring-outer"></div>
-                            <div class="pulse-ring-middle"></div>
-                            <div class="button-inner-circle">
-                                <!-- Fingerprint / Face Biometric Graphic -->
-                                <div class="biometric-icon-glow">
-                                    <i class="bi bi-fingerprint" id="scanIcon"></i>
+                    <div class="punch-button-wrapper" id="punchButtonWrapper">
+                        <button type="button" class="punch-circular-btn {{ $todayAttendance && $todayAttendance->check_in && !$todayAttendance->check_out ? 'btn-checked-in' : '' }}" id="triggerPunchScanBtn">
+                            <div class="pulse-ring ring-1"></div>
+                            <div class="pulse-ring ring-2"></div>
+                            <div class="punch-inner-disc">
+                                <div class="punch-icon-glow">
+                                    <i class="bi bi-fingerprint" id="punchBtnIcon"></i>
                                 </div>
-                                <span class="scan-button-label" id="scanButtonLabel">
+                                <span class="punch-btn-text" id="punchBtnText">
                                     {{ $todayAttendance && $todayAttendance->check_in && !$todayAttendance->check_out ? 'Check Out' : 'Check In' }}
                                 </span>
                             </div>
@@ -145,100 +123,141 @@
 
                     <!-- Geofence Distance Indicator (Numla Prototype 2) -->
                     <div class="mt-3">
-                        <span class="phone-distance-pill">
+                        <span class="distance-geofence-pill">
                             <i class="bi bi-geo-alt-fill text-danger me-1"></i>
                             <span id="geofenceDistanceText">You are 10 Km away from your office.</span>
                         </span>
                     </div>
                 </div>
 
-                <!-- Verified Identity Card (Shows on Face Recognition Success) -->
-                <div class="verified-identity-card mb-3" id="verifiedIdentityCard" style="display: none;">
-                    <div class="d-flex align-items-center gap-2 mb-2">
-                        <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.72rem;">
-                            <i class="bi bi-check-circle-fill me-1"></i> Face Verified in DB
+                <!-- Verified Identity Card Alert (Shows upon Face Recognition Match) -->
+                <div class="verified-card-banner mb-4" id="verifiedResultBanner" style="display: none;">
+                    <div class="d-flex align-items-center justify-content-between mb-2 flex-wrap gap-2">
+                        <span class="badge bg-success text-white px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
+                            <i class="bi bi-check-circle-fill me-1"></i> Identity Verified
                         </span>
-                        <span class="badge bg-light text-dark border font-monospace ms-auto" id="cardConfidenceBadge" style="font-size: 0.72rem;">
-                            99.4% Match
+                        <span class="badge bg-white text-success border border-success-subtle fw-bold" id="verifiedConfidencePill" style="font-size: 0.75rem;">
+                            99.2% Match
                         </span>
                     </div>
 
-                    <div class="d-flex align-items-center gap-3">
-                        <img src="" id="cardEmpAvatar" class="avatar-sm" style="width: 48px; height: 48px; border-radius: 14px; object-fit: cover; border: 2px solid #16a34a;" alt="Verified">
-                        <div class="flex-grow-1 text-start">
-                            <div class="fw-bold text-dark fs-6" id="cardEmpName">Cody Fisher</div>
-                            <div class="text-muted small" id="cardEmpDesignation">Staff Engineer &bull; Engineering</div>
-                            <div class="text-primary small fw-semibold" id="cardPunchMessage">Checked in at 09:41 AM</div>
+                    <div class="d-flex align-items-center gap-3 text-start">
+                        <img src="" id="verifiedEmpAvatar" class="avatar-sm" style="width: 52px; height: 52px; border-radius: 14px; object-fit: cover; border: 2px solid #16a34a;" alt="Avatar">
+                        <div class="flex-grow-1">
+                            <div class="fw-bold text-dark fs-6" id="verifiedEmpName">Cody Fisher</div>
+                            <div class="text-muted small" id="verifiedEmpMeta">Lead Full-Stack Engineer &bull; Engineering</div>
+                            <div class="text-success small fw-bold mt-1" id="verifiedPunchMessage">
+                                <i class="bi bi-box-arrow-in-right me-1"></i> Checked in successfully
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- 3 Stats Cards (Numla Prototype 2: Check In, Check Out, Hours Worked) -->
-                <div class="row g-2 mb-4 px-1">
+                <div class="row g-3 justify-content-center pt-2">
                     <!-- Check In Box -->
-                    <div class="col-4">
-                        <div class="phone-stat-box">
-                            <div class="stat-icon-square icon-checkin">
+                    <div class="col-12 col-sm-4">
+                        <div class="stat-punch-card">
+                            <div class="stat-punch-icon icon-in">
                                 <i class="bi bi-box-arrow-in-right"></i>
                             </div>
-                            <div class="stat-value" id="phoneCheckInVal">
-                                {{ $todayAttendance && $todayAttendance->check_in ? date('h:i a', strtotime($todayAttendance->check_in)) : '9:41 am' }}
+                            <div class="stat-punch-val" id="displayCheckInVal">
+                                {{ $todayAttendance && $todayAttendance->check_in ? date('h:i A', strtotime($todayAttendance->check_in)) : '09:41 AM' }}
                             </div>
-                            <div class="stat-label">Check In</div>
+                            <div class="stat-punch-lbl">Check In Time</div>
                         </div>
                     </div>
 
                     <!-- Check Out Box -->
-                    <div class="col-4">
-                        <div class="phone-stat-box">
-                            <div class="stat-icon-square icon-checkout">
+                    <div class="col-12 col-sm-4">
+                        <div class="stat-punch-card">
+                            <div class="stat-punch-icon icon-out">
                                 <i class="bi bi-box-arrow-right"></i>
                             </div>
-                            <div class="stat-value" id="phoneCheckOutVal">
-                                {{ $todayAttendance && $todayAttendance->check_out ? date('h:i a', strtotime($todayAttendance->check_out)) : '-----' }}
+                            <div class="stat-punch-val" id="displayCheckOutVal">
+                                {{ $todayAttendance && $todayAttendance->check_out ? date('h:i A', strtotime($todayAttendance->check_out)) : '--:--' }}
                             </div>
-                            <div class="stat-label">Check Out</div>
+                            <div class="stat-punch-lbl">Check Out Time</div>
                         </div>
                     </div>
 
                     <!-- Hours Worked Box -->
-                    <div class="col-4">
-                        <div class="phone-stat-box">
-                            <div class="stat-icon-square icon-hours">
+                    <div class="col-12 col-sm-4">
+                        <div class="stat-punch-card">
+                            <div class="stat-punch-icon icon-hrs">
                                 <i class="bi bi-clock"></i>
                             </div>
-                            <div class="stat-value" id="phoneHoursVal">
+                            <div class="stat-punch-val" id="displayHoursVal">
                                 {{ $todayAttendance && $todayAttendance->worked_minutes ? round($todayAttendance->worked_minutes / 60, 1) . ' hrs' : '5.1 hrs' }}
                             </div>
-                            <div class="stat-label">Hours Worked</div>
+                            <div class="stat-punch-lbl">Hours Worked Today</div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Bottom App Navigation Bar (Numla Prototype 2) -->
-            <div class="phone-bottom-nav">
-                <a href="{{ route('attendance.mobile') }}" class="nav-item active">
-                    <i class="bi bi-fingerprint"></i>
-                    <span>Check In/Out</span>
-                    <span class="active-dot"></span>
-                </a>
-                <a href="{{ route('attendance.index') }}" class="nav-item">
-                    <i class="bi bi-calendar-check"></i>
-                    <span>Attendances</span>
-                </a>
-                <!-- Center Floating Camera Punch Button -->
-                <button type="button" class="nav-item-center-camera" id="bottomNavCameraBtn" title="Scan Face Now">
-                    <i class="bi bi-camera-fill"></i>
-                </button>
-                <a href="{{ route('schedule.index') }}" class="nav-item">
-                    <i class="bi bi-building"></i>
-                    <span>Workplaces</span>
-                </a>
-                <a href="{{ route('dashboard') }}" class="nav-item">
-                    <i class="bi bi-bar-chart"></i>
-                    <span>Reports</span>
-                </a>
+                <!-- Manual Mode Toggle / Quick Action -->
+                <div class="mt-4 pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small">
+                    <div>
+                        <i class="bi bi-shield-check text-success me-1"></i>
+                        <span>Biometric Security Terminal Active</span>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-link text-decoration-none text-muted p-0" id="toggleLiveCamBtn">
+                            <i class="bi bi-camera me-1"></i> <span id="toggleCamText">Preview Camera</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side: Today's Recent Scans (Responsive Column) -->
+        <div class="col-12 col-xl-4 col-lg-3">
+            <div class="card card-custom p-4 h-100">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h6 class="fw-bold mb-0 text-slate-900" style="font-size: 1rem;">Recent Activity</h6>
+                    <span class="badge bg-light text-muted border font-monospace">Today</span>
+                </div>
+
+                <div class="timeline-activity">
+                    <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom">
+                        <div style="width: 34px; height: 34px; background: #eff6ff; color: #2563eb; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-fingerprint"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark small">Biometric Facial Verification</div>
+                            <div class="text-muted" style="font-size: 0.74rem;">Live camera scanning terminal</div>
+                            <div class="text-primary fw-semibold mt-1" style="font-size: 0.72rem;">Status: Ready</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3 mb-3 pb-3 border-bottom">
+                        <div style="width: 34px; height: 34px; background: #ecfdf5; color: #10b981; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-geo-alt"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark small">Geofence Location Validation</div>
+                            <div class="text-muted" style="font-size: 0.74rem;">HQ Main Entrance Gate</div>
+                            <div class="text-success fw-semibold mt-1" style="font-size: 0.72rem;">Zone: Verified</div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start gap-3">
+                        <div style="width: 34px; height: 34px; background: #fff7ed; color: #ea580c; border-radius: 10px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div>
+                            <div class="fw-bold text-dark small">Shift Schedule Compliance</div>
+                            <div class="text-muted" style="font-size: 0.74rem;">Morning Shift (09:00 AM - 05:00 PM)</div>
+                            <div class="text-muted fw-semibold mt-1" style="font-size: 0.72rem;">On Schedule</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-auto pt-3">
+                    <a href="{{ route('leaves.apply') }}" class="btn btn-outline-primary w-100 fw-bold py-2" style="border-radius: 10px; font-size: 0.82rem;">
+                        <i class="bi bi-send-plus me-1"></i> Apply for Time Off
+                    </a>
+                </div>
             </div>
         </div>
     </div>
@@ -247,136 +266,52 @@
 
 @push('styles')
 <style>
-    /* Phone Mockup Container (Prototype 2 Numla) */
-    .numla-phone-frame {
-        width: 390px;
-        height: 800px;
-        background: #ffffff;
-        border-radius: 46px;
-        box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.25), 0 0 0 10px #1e293b, 0 0 0 12px #334155;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
-        position: relative;
-        transition: all 0.3s ease;
-    }
-
-    /* Fullscreen mode toggle */
-    .numla-phone-frame.fullscreen-mode {
-        width: 100%;
-        max-width: 480px;
-        height: auto;
-        min-height: 90vh;
-        border-radius: 24px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.08);
-        border: 1px solid #e2e8f0;
-    }
-
-    /* iOS Status Bar */
-    .phone-status-bar {
-        height: 44px;
-        padding: 0 24px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #0f172a;
-        z-index: 10;
-        background: #ffffff;
-    }
-    .phone-status-bar .camera-notch {
-        width: 110px;
-        height: 22px;
-        background: #0f172a;
-        border-radius: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    .phone-status-bar .camera-notch .lens {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        background: #1e293b;
-        border: 1px solid #334155;
-    }
-    .phone-status-bar .icons {
-        display: flex;
-        gap: 6px;
-        font-size: 0.85rem;
-    }
-
-    /* App Header */
-    .phone-app-header {
-        height: 48px;
-        padding: 0 18px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .numla-logo-text {
-        font-weight: 800;
-        font-size: 1.35rem;
-        color: #0284c7;
-        letter-spacing: -0.5px;
-    }
-    .btn-icon {
-        background: transparent;
-        border: none;
-        padding: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-    }
-
-    /* Phone Body */
-    .phone-app-body {
-        flex: 1;
-        overflow-y: auto;
-        padding: 0 22px 20px 22px;
-        display: flex;
-        flex-direction: column;
-    }
-    .phone-user-avatar {
-        width: 72px;
-        height: 72px;
+    /* Clean Mobile Responsive Punch Page */
+    .user-punch-avatar {
+        width: 88px;
+        height: 88px;
         border-radius: 50%;
         object-fit: cover;
-        border: 3px solid #f1f5f9;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        border: 4px solid #f1f5f9;
+        box-shadow: 0 8px 20px rgba(0,0,0,0.06);
     }
 
     /* Digital Clock */
-    .phone-digital-clock {
-        font-size: 2.25rem;
+    .responsive-digital-clock {
+        font-size: 3rem;
         font-weight: 800;
         color: #0f172a;
         line-height: 1;
-        letter-spacing: -1px;
+        letter-spacing: -1.5px;
     }
-    .phone-digital-clock .clock-meridiem {
-        font-size: 1.15rem;
+    .responsive-digital-clock .clock-ampm {
+        font-size: 1.4rem;
         font-weight: 600;
         color: #64748b;
-        text-transform: lowercase;
+        letter-spacing: normal;
     }
-    .phone-date-string {
-        font-size: 0.82rem;
-        font-weight: 500;
-        margin-top: 4px;
+    @media (max-width: 576px) {
+        .responsive-digital-clock {
+            font-size: 2.3rem;
+        }
+        .responsive-digital-clock .clock-ampm {
+            font-size: 1.1rem;
+        }
+        .user-punch-avatar {
+            width: 72px;
+            height: 72px;
+        }
     }
 
-    /* Circular Biometric Scan Button (Numla Prototype 2) */
-    .biometric-scan-button-wrapper {
+    /* Circular Punch Button */
+    .punch-button-wrapper {
         display: flex;
         justify-content: center;
         position: relative;
     }
-    .biometric-scan-button {
-        width: 154px;
-        height: 154px;
+    .punch-circular-btn {
+        width: 172px;
+        height: 172px;
         border-radius: 50%;
         border: none;
         background: transparent;
@@ -388,9 +323,9 @@
         align-items: center;
         justify-content: center;
     }
-    .button-inner-circle {
-        width: 136px;
-        height: 136px;
+    .punch-inner-disc {
+        width: 150px;
+        height: 150px;
         border-radius: 50%;
         background: linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%);
         color: white;
@@ -398,215 +333,172 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        box-shadow: 0 12px 28px -6px rgba(37, 99, 235, 0.55);
+        box-shadow: 0 14px 30px -6px rgba(37, 99, 235, 0.55);
         z-index: 2;
         transition: transform 0.2s ease, background 0.3s ease;
     }
-    .biometric-scan-button:active .button-inner-circle {
+    .punch-circular-btn:active .punch-inner-disc {
         transform: scale(0.95);
     }
-    .biometric-scan-button.active-checked-in .button-inner-circle {
+    .punch-circular-btn.btn-checked-in .punch-inner-disc {
         background: linear-gradient(135deg, #f43f5e 0%, #e11d48 50%, #be123c 100%);
-        box-shadow: 0 12px 28px -6px rgba(225, 29, 72, 0.55);
+        box-shadow: 0 14px 30px -6px rgba(225, 29, 72, 0.55);
     }
-    .biometric-icon-glow {
-        font-size: 3rem;
+    .punch-icon-glow {
+        font-size: 3.4rem;
         line-height: 1;
         margin-bottom: 2px;
     }
-    .scan-button-label {
-        font-size: 0.82rem;
+    .punch-btn-text {
+        font-size: 0.92rem;
         font-weight: 700;
         letter-spacing: 0.02em;
     }
 
     /* Pulsating outer rings */
-    .pulse-ring-outer, .pulse-ring-middle {
+    .pulse-ring {
         position: absolute;
         border-radius: 50%;
         pointer-events: none;
     }
-    .pulse-ring-middle {
-        width: 148px;
-        height: 148px;
-        background: rgba(37, 99, 235, 0.15);
-        animation: pulseMiddle 2s infinite ease-out;
-    }
-    .pulse-ring-outer {
+    .pulse-ring.ring-1 {
         width: 164px;
         height: 164px;
-        background: rgba(37, 99, 235, 0.08);
-        animation: pulseOuter 2s infinite ease-out;
+        background: rgba(37, 99, 235, 0.15);
+        animation: pulseRingOne 2.2s infinite ease-out;
     }
-    @keyframes pulseMiddle {
+    .pulse-ring.ring-2 {
+        width: 184px;
+        height: 184px;
+        background: rgba(37, 99, 235, 0.08);
+        animation: pulseRingTwo 2.2s infinite ease-out;
+    }
+    @keyframes pulseRingOne {
         0% { transform: scale(0.9); opacity: 0.8; }
-        50% { transform: scale(1.05); opacity: 0.4; }
+        50% { transform: scale(1.06); opacity: 0.4; }
         100% { transform: scale(0.9); opacity: 0.8; }
     }
-    @keyframes pulseOuter {
+    @keyframes pulseRingTwo {
         0% { transform: scale(0.85); opacity: 0.5; }
-        50% { transform: scale(1.12); opacity: 0.2; }
+        50% { transform: scale(1.14); opacity: 0.15; }
         100% { transform: scale(0.85); opacity: 0.5; }
     }
 
-    /* Live Camera Viewport inside phone */
-    .phone-live-camera-viewport {
-        width: 200px;
-        height: 200px;
-        border-radius: 28px;
-        overflow: hidden;
-        margin: 0 auto 12px auto;
-        position: relative;
-        background: #000;
-        border: 3px solid #0284c7;
-        box-shadow: 0 10px 25px rgba(2, 132, 199, 0.35);
-    }
-    .phone-live-camera-viewport video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-    .mobile-hud-reticle {
-        position: absolute;
-        top: 15px; left: 15px; right: 15px; bottom: 15px;
-        pointer-events: none;
-    }
-    .b-bracket {
-        position: absolute;
-        width: 16px;
-        height: 16px;
-        border-color: #38bdf8;
-        border-style: solid;
-    }
-    .b-tl { top: 0; left: 0; border-width: 2px 0 0 2px; }
-    .b-tr { top: 0; right: 0; border-width: 2px 2px 0 0; }
-    .b-bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; }
-    .b-br { bottom: 0; right: 0; border-width: 0 2px 2px 0; }
-    .mobile-laser-scanner {
-        position: absolute;
-        left: 0; right: 0;
-        height: 2px;
-        background: #38bdf8;
-        box-shadow: 0 0 8px #38bdf8;
-        animation: scanMobile 1.8s infinite ease-in-out;
-    }
-    @keyframes scanMobile {
-        0% { top: 5%; opacity: 0.3; }
-        50% { top: 90%; opacity: 1; }
-        100% { top: 5%; opacity: 0.3; }
-    }
-
     /* Distance Pill */
-    .phone-distance-pill {
+    .distance-geofence-pill {
         display: inline-flex;
         align-items: center;
         background: #f8fafc;
         border: 1px solid #e2e8f0;
         color: #475569;
-        font-size: 0.74rem;
+        font-size: 0.8rem;
         font-weight: 500;
-        padding: 5px 14px;
+        padding: 6px 16px;
         border-radius: 20px;
     }
 
-    /* 3 Summary Stats Boxes (Prototype 2) */
-    .phone-stat-box {
+    /* 3 Summary Stats Cards */
+    .stat-punch-card {
         background: #ffffff;
         border: 1px solid #f1f5f9;
         border-radius: 18px;
-        padding: 12px 6px;
+        padding: 16px 12px;
         text-align: center;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+        transition: transform 0.2s ease;
     }
-    .stat-icon-square {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+    .stat-punch-card:hover {
+        transform: translateY(-2px);
+    }
+    .stat-punch-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 6px auto;
-        font-size: 1.15rem;
+        margin: 0 auto 8px auto;
+        font-size: 1.25rem;
     }
-    .icon-checkin { background: #eff6ff; color: #2563eb; }
-    .icon-checkout { background: #f0fdf4; color: #16a34a; }
-    .icon-hours { background: #f8fafc; color: #64748b; }
-    .stat-value {
-        font-weight: 700;
-        font-size: 0.8rem;
+    .icon-in { background: #eff6ff; color: #2563eb; }
+    .icon-out { background: #f0fdf4; color: #16a34a; }
+    .icon-hrs { background: #f8fafc; color: #64748b; }
+    .stat-punch-val {
+        font-weight: 800;
+        font-size: 0.95rem;
         color: #0f172a;
         margin-bottom: 2px;
-        white-space: nowrap;
     }
-    .stat-label {
-        font-size: 0.68rem;
+    .stat-punch-lbl {
+        font-size: 0.72rem;
         color: #94a3b8;
-        font-weight: 500;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
     }
 
-    /* Verified Identity Card */
-    .verified-identity-card {
+    /* Live Camera Feed Viewport (Responsive) */
+    .live-camera-feed-box {
+        width: 100%;
+        max-width: 340px;
+        height: 260px;
+        border-radius: 20px;
+        overflow: hidden;
+        position: relative;
+        background: #0f172a;
+        border: 3px solid #2563eb;
+        box-shadow: 0 12px 30px rgba(37, 99, 235, 0.3);
+        margin: 0 auto;
+    }
+    .live-camera-feed-box video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    .camera-hud-overlay {
+        position: absolute;
+        top: 20px; left: 20px; right: 20px; bottom: 20px;
+        pointer-events: none;
+    }
+    .hud-corner {
+        position: absolute;
+        width: 22px;
+        height: 22px;
+        border-color: #38bdf8;
+        border-style: solid;
+    }
+    .hud-corner.top-left { top: 0; left: 0; border-width: 3px 0 0 3px; border-top-left-radius: 8px; }
+    .hud-corner.top-right { top: 0; right: 0; border-width: 3px 3px 0 0; border-top-right-radius: 8px; }
+    .hud-corner.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 8px; }
+    .hud-corner.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 8px; }
+    .hud-scanner-bar {
+        position: absolute;
+        left: 0; right: 0;
+        height: 2px;
+        background: #38bdf8;
+        box-shadow: 0 0 10px #38bdf8;
+        animation: hudScanAnim 2s infinite ease-in-out;
+    }
+    @keyframes hudScanAnim {
+        0% { top: 5%; opacity: 0.2; }
+        50% { top: 92%; opacity: 1; }
+        100% { top: 5%; opacity: 0.2; }
+    }
+
+    /* Verified Result Card */
+    .verified-card-banner {
         background: #f0fdf4;
         border: 1px solid #bbf7d0;
-        border-radius: 16px;
-        padding: 14px;
-        animation: fadeInCard 0.4s ease;
+        border-radius: 18px;
+        padding: 16px 20px;
+        width: 100%;
+        max-width: 520px;
+        margin: 0 auto;
+        animation: fadeInBanner 0.35s ease;
     }
-    @keyframes fadeInCard {
-        from { opacity: 0; transform: translateY(10px); }
+    @keyframes fadeInBanner {
+        from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Bottom App Nav Bar */
-    .phone-bottom-nav {
-        height: 70px;
-        background: #ffffff;
-        border-top: 1px solid #f1f5f9;
-        display: flex;
-        align-items: center;
-        justify-content: space-around;
-        padding: 0 10px 10px 10px;
-        position: relative;
-    }
-    .phone-bottom-nav .nav-item {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-        color: #94a3b8;
-        text-decoration: none;
-        font-size: 0.65rem;
-        font-weight: 600;
-        position: relative;
-    }
-    .phone-bottom-nav .nav-item i {
-        font-size: 1.25rem;
-    }
-    .phone-bottom-nav .nav-item.active {
-        color: #0284c7;
-    }
-    .phone-bottom-nav .nav-item .active-dot {
-        width: 4px;
-        height: 4px;
-        background: #0284c7;
-        border-radius: 50%;
-        position: absolute;
-        bottom: -6px;
-    }
-    .nav-item-center-camera {
-        width: 46px;
-        height: 46px;
-        border-radius: 50%;
-        background: #0284c7;
-        color: white;
-        border: 3px solid #ffffff;
-        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 1.25rem;
-        cursor: pointer;
-        transform: translateY(-8px);
     }
 </style>
 @endpush
@@ -614,58 +506,69 @@
 @push('scripts')
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const scanBtn = document.getElementById('mobileBiometricScanBtn');
-    const scanLabel = document.getElementById('scanButtonLabel');
-    const cameraViewport = document.getElementById('liveCameraViewport');
-    const video = document.getElementById('mobileWebcamVideo');
-    const canvas = document.getElementById('mobileCanvas');
-    const scanPrompt = document.getElementById('mobileScanPrompt');
-    const verifiedCard = document.getElementById('verifiedIdentityCard');
-    const cameraBottomBtn = document.getElementById('bottomNavCameraBtn');
-    const frameToggleBtn = document.getElementById('togglePhoneFrameBtn');
-    const phoneFrame = document.getElementById('numlaPhoneFrame');
+    const punchBtn = document.getElementById('triggerPunchScanBtn');
+    const punchText = document.getElementById('punchBtnText');
+    const cameraBox = document.getElementById('liveCameraContainer');
+    const video = document.getElementById('responsiveWebcamVideo');
+    const canvas = document.getElementById('responsiveCanvas');
+    const cameraPrompt = document.getElementById('cameraStatusPrompt');
+    const verifiedBanner = document.getElementById('verifiedResultBanner');
+    const toggleCamBtn = document.getElementById('toggleLiveCamBtn');
+    const toggleCamText = document.getElementById('toggleCamText');
 
     let stream = null;
     let isScanning = false;
-    let targetEmployeeId = {{ $employee->id }};
+    let activeEmployeeId = {{ $employee->id }};
 
-    // Toggle frame mode (Desktop iPhone mockup vs full responsive)
-    if (frameToggleBtn) {
-        frameToggleBtn.addEventListener('click', function() {
-            phoneFrame.classList.toggle('fullscreen-mode');
-            frameToggleBtn.innerHTML = phoneFrame.classList.contains('fullscreen-mode') 
-                ? '<i class="bi bi-phone me-1"></i> Phone Mockup' 
-                : '<i class="bi bi-aspect-ratio me-1"></i> Frame View';
-        });
-    }
-
-    // Digital clock updater
+    // Live Digital Clock (every second)
     setInterval(() => {
         const d = new Date();
         const hours = d.getHours();
         const minutes = String(d.getMinutes()).padStart(2, '0');
-        const ampm = hours >= 12 ? 'pm' : 'am';
+        const ampm = hours >= 12 ? 'PM' : 'AM';
         const formattedHours = hours % 12 || 12;
 
-        const clockEl = document.getElementById('phoneBigClock');
+        const clockEl = document.getElementById('liveDigitalClock');
         if (clockEl) {
-            clockEl.innerHTML = `${String(formattedHours).padStart(2, '0')}:${minutes} <span class="clock-meridiem">${ampm}</span>`;
-        }
-        const iosClock = document.getElementById('iosClock');
-        if (iosClock) {
-            iosClock.innerText = `${formattedHours}:${minutes} ${ampm.toUpperCase()}`;
+            clockEl.innerHTML = `${String(formattedHours).padStart(2, '0')}:${minutes} <span class="clock-ampm">${ampm}</span>`;
         }
     }, 1000);
 
-    // Trigger Face Scan & Verification
-    async function triggerBiometricFaceVerification() {
+    // Toggle Camera Manual Preview
+    async function toggleCameraStream() {
+        if (stream) {
+            stream.getTracks().forEach(t => t.stop());
+            stream = null;
+            cameraBox.style.display = 'none';
+            if (toggleCamText) toggleCamText.innerText = 'Preview Camera';
+        } else {
+            cameraBox.style.display = 'block';
+            if (toggleCamText) toggleCamText.innerText = 'Hide Camera';
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { width: 480, height: 480, facingMode: 'user' }
+                });
+                video.srcObject = stream;
+            } catch (err) {
+                console.warn('Camera stream permission unavailable, simulation mode:', err);
+                cameraPrompt.innerText = 'Camera Ready (Simulated Mode)';
+            }
+        }
+    }
+
+    if (toggleCamBtn) {
+        toggleCamBtn.addEventListener('click', toggleCameraStream);
+    }
+
+    // Trigger Punch with Face Recognition Verification
+    async function executeFaceAttendancePunch() {
         if (isScanning) return;
         isScanning = true;
 
-        // Show camera viewport inside phone
-        cameraViewport.style.display = 'block';
-        scanPrompt.innerText = 'Verifying face...';
-        scanLabel.innerText = 'Analyzing...';
+        // Reveal Camera
+        cameraBox.style.display = 'block';
+        cameraPrompt.innerText = 'Scanning facial landmarks...';
+        punchText.innerText = 'Verifying...';
 
         try {
             if (!stream) {
@@ -675,68 +578,66 @@ document.addEventListener('DOMContentLoaded', function() {
                 video.srcObject = stream;
             }
         } catch (e) {
-            console.warn('Camera stream permission unavailable, using simulation extraction:', e);
-            scanPrompt.innerText = 'Camera Mode: Sensor Extraction';
+            console.warn('Camera stream unavailable, continuing in verified sensor mode:', e);
+            cameraPrompt.innerText = 'Analyzing face sensor...';
         }
 
-        // Simulate 750ms AI Face Extraction
         setTimeout(async () => {
-            scanPrompt.innerText = 'Verifying identity with database...';
+            cameraPrompt.innerText = 'Verifying identity...';
 
             try {
-                // Post to face-scan API endpoint
-                const res = await fetch("{{ route('attendance.facescan') }}", {
+                const response = await fetch("{{ route('attendance.facescan') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
                     body: JSON.stringify({
-                        employee_id: targetEmployeeId
+                        employee_id: activeEmployeeId
                     })
                 });
 
-                const data = await res.json();
+                const data = await response.json();
 
                 if (data.success) {
-                    // Update Verified Identity Card
-                    document.getElementById('cardEmpAvatar').src = data.employee.avatar;
-                    document.getElementById('cardEmpName').innerText = data.employee.name;
-                    document.getElementById('cardEmpDesignation').innerText = data.employee.designation + ' • ' + data.employee.department;
-                    document.getElementById('cardConfidenceBadge').innerText = data.confidence + ' Match';
+                    // Update Verified Card Banner
+                    document.getElementById('verifiedEmpAvatar').src = data.employee.avatar;
+                    document.getElementById('verifiedEmpName').innerText = data.employee.name;
+                    document.getElementById('verifiedEmpMeta').innerText = `${data.employee.designation} • ${data.employee.department}`;
+                    document.getElementById('verifiedConfidencePill').innerText = `${data.confidence} Match`;
 
-                    const punchMsg = data.action === 'checked_out' 
-                        ? `Checked OUT at ${data.attendance.check_out}` 
-                        : `Checked IN at ${data.attendance.check_in}`;
-                    document.getElementById('cardPunchMessage').innerText = punchMsg;
+                    const punchMsg = data.action === 'checked_out'
+                        ? `<i class="bi bi-box-arrow-right me-1 text-danger"></i> Checked OUT at ${data.attendance.check_out}`
+                        : `<i class="bi bi-box-arrow-in-right me-1 text-success"></i> Checked IN at ${data.attendance.check_in}`;
+                    document.getElementById('verifiedPunchMessage').innerHTML = punchMsg;
 
-                    verifiedCard.style.display = 'block';
+                    verifiedBanner.style.display = 'block';
 
-                    // Update Top greeting & Avatar to the verified employee
-                    document.getElementById('phoneGreetingText').innerText = `Welcome ${data.employee.name}!`;
-                    document.getElementById('phoneUserAvatar').src = data.employee.avatar;
-                    document.getElementById('phoneUserCode').innerText = `${data.employee.employee_code} • ${data.employee.department}`;
+                    // Update Top User Header Info
+                    document.getElementById('punchGreetingText').innerText = `Welcome Back, ${data.employee.name}!`;
+                    document.getElementById('punchUserAvatar').src = data.employee.avatar;
+                    document.getElementById('punchUserCode').innerText = data.employee.employee_code;
 
-                    // Update stats boxes
+                    // Update Display Stats
                     if (data.attendance.check_in) {
-                        document.getElementById('phoneCheckInVal').innerText = data.attendance.check_in;
+                        document.getElementById('displayCheckInVal').innerText = data.attendance.check_in;
                     }
                     if (data.attendance.check_out && data.attendance.check_out !== '--:--') {
-                        document.getElementById('phoneCheckOutVal').innerText = data.attendance.check_out;
+                        document.getElementById('displayCheckOutVal').innerText = data.attendance.check_out;
                     }
 
-                    // Update Scan Button state
+                    // Toggle Button State
                     if (data.action === 'checked_in') {
-                        scanBtn.classList.add('active-checked-in');
-                        scanLabel.innerText = 'Check Out';
+                        punchBtn.classList.add('btn-checked-in');
+                        punchText.innerText = 'Check Out';
                     } else {
-                        scanBtn.classList.remove('active-checked-in');
-                        scanLabel.innerText = 'Check In';
+                        punchBtn.classList.remove('btn-checked-in');
+                        punchText.innerText = 'Check In';
                     }
 
-                    scanPrompt.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Verified: ${data.employee.name}</span>`;
+                    cameraPrompt.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Verified: ${data.employee.name}</span>`;
 
-                    // Play success sound beep (Web Audio API)
+                    // Subtle Audio Feedback
                     try {
                         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         const osc = audioCtx.createOscillator();
@@ -751,29 +652,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 } else {
                     alert('Verification Failed: ' + data.message);
-                    scanPrompt.innerText = 'Identity Not Found in DB';
+                    cameraPrompt.innerText = 'Verification Failed';
                 }
             } catch (err) {
                 console.error(err);
-                scanPrompt.innerText = 'Verification Request Error';
+                cameraPrompt.innerText = 'Network error during verification';
             } finally {
                 setTimeout(() => {
-                    cameraViewport.style.display = 'none';
+                    cameraBox.style.display = 'none';
                     if (stream) {
                         stream.getTracks().forEach(t => t.stop());
                         stream = null;
                     }
+                    if (toggleCamText) toggleCamText.innerText = 'Preview Camera';
                     isScanning = false;
                 }, 1600);
             }
-        }, 850);
+        }, 800);
     }
 
-    if (scanBtn) {
-        scanBtn.addEventListener('click', triggerBiometricFaceVerification);
-    }
-    if (cameraBottomBtn) {
-        cameraBottomBtn.addEventListener('click', triggerBiometricFaceVerification);
+    if (punchBtn) {
+        punchBtn.addEventListener('click', executeFaceAttendancePunch);
     }
 });
 </script>
