@@ -449,6 +449,10 @@
                     <i class="bi bi-camera-video"></i>
                     <span>Facial Scanner</span>
                 </a>
+                <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
+                    <i class="bi bi-phone"></i>
+                    <span>Mobile Attendance</span>
+                </a>
                 <div class="nav-section-title">SELF-SERVICE</div>
                 <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') ? 'active' : '' }}">
                     <i class="bi bi-person-badge"></i>
@@ -493,6 +497,10 @@
                     <i class="bi bi-camera-video"></i>
                     <span>Live Face Scanner</span>
                 </a>
+                <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
+                    <i class="bi bi-phone"></i>
+                    <span>Mobile Attendance</span>
+                </a>
                 <a href="{{ route('leaves.apply') }}" class="nav-link-custom {{ request()->routeIs('leaves.apply') ? 'active' : '' }}">
                     <i class="bi bi-send-plus"></i>
                     <span>Apply for Leave</span>
@@ -532,6 +540,10 @@
                 <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
                     <i class="bi bi-camera-video"></i>
                     <span>Facial Scanner</span>
+                </a>
+                <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
+                    <i class="bi bi-phone"></i>
+                    <span>Mobile Attendance</span>
                 </a>
                 <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
                     <i class="bi bi-calendar-week"></i>

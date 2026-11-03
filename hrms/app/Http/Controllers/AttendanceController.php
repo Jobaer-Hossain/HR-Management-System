@@ -68,6 +68,35 @@ class AttendanceController extends Controller
     }
 
     /**
+     * Clean Mobile View for Employee Facial Attendance (Prototype 2 Numla Mobile)
+     */
+    public function mobileAttendance(Request $request)
+    {
+        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenant = Tenant::find($tenantId) ?? Tenant::first();
+
+        $employeeId = $request->get('emp_id', session('portal_employee_id', 1));
+        $employee = Employee::with(['department', 'designation'])
+            ->where('tenant_id', $tenant->id)
+            ->find($employeeId);
+
+        if (!$employee) {
+            $employee = Employee::with(['department', 'designation'])
+                ->where('tenant_id', $tenant->id)
+                ->first();
+        }
+
+        $allStaff = Employee::where('tenant_id', $tenant->id)->get();
+
+        $todayAttendance = Attendance::where('tenant_id', $tenant->id)
+            ->where('employee_id', $employee ? $employee->id : 1)
+            ->where('attendance_date', date('Y-m-d'))
+            ->first();
+
+        return view('attendance.mobile', compact('tenant', 'employee', 'allStaff', 'todayAttendance'));
+    }
+
+    /**
      * Process face detection and attendance logging via biometric vector verification
      */
     public function processFaceScan(Request $request)

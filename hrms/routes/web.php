@@ -67,11 +67,13 @@ Route::prefix('leaves')->group(function () {
 Route::prefix('attendance')->group(function () {
     Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index');
     Route::get('/face', [AttendanceController::class, 'faceScanner'])->name('attendance.face');
+    Route::get('/mobile', [AttendanceController::class, 'mobileAttendance'])->name('attendance.mobile');
     Route::post('/face-scan', [AttendanceController::class, 'processFaceScan'])->name('attendance.facescan');
     Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin');
     Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout');
     Route::post('/break', [AttendanceController::class, 'toggleBreak'])->name('attendance.break');
 });
+Route::get('/mobile/attendance', [AttendanceController::class, 'mobileAttendance']);
 
 // Shift Schedule Management (Screenshot 4: Agendrix Schedule Planner)
 Route::prefix('schedule')->group(function () {
