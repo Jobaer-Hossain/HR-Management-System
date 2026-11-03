@@ -15,4 +15,9 @@ class Designation extends Model
     {
         return $this->belongsTo(Tenant::class);
     }
+
+    public function getTitleAttribute()
+    {
+        return $this->attributes['designation_name'] ?? ($this->attributes['title'] ?? 'Staff');
+    }
 }

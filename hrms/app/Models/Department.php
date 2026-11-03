@@ -20,4 +20,9 @@ class Department extends Model
     {
         return $this->hasMany(Employee::class);
     }
+
+    public function getNameAttribute()
+    {
+        return $this->attributes['department_name'] ?? ($this->attributes['name'] ?? 'General');
+    }
 }

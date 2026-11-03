@@ -5,8 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\Employee;
+use App\Models\Department;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 
 class LeaveController extends Controller
 {
@@ -26,26 +28,93 @@ class LeaveController extends Controller
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        // 7 days of the calendar week (matching Screenshot 3: 10 Wed, 11 Thu, 12 Fri, 13 Sat, 14 Sun, 15 Mon, 16 Tue)
-        $days = [
-            ['day' => '10', 'weekday' => 'Wed', 'date' => '2026-01-10'],
-            ['day' => '11', 'weekday' => 'Thu', 'date' => '2026-01-11'],
-            ['day' => '12', 'weekday' => 'Fri', 'date' => '2026-01-12'],
-            ['day' => '13', 'weekday' => 'Sat', 'date' => '2026-01-13'],
-            ['day' => '14', 'weekday' => 'Sun', 'date' => '2026-01-14'],
-            ['day' => '15', 'weekday' => 'Mon', 'date' => '2026-01-15'],
-            ['day' => '16', 'weekday' => 'Tue', 'date' => '2026-01-16'],
-        ];
+        // Base date for weekly calendar (default 2026-01-10 matching Screenshot 3)
+        $startDateStr = $request->get('date', '2026-01-10');
+        try {
+            $startDate = Carbon::parse($startDateStr);
+        } catch (\Exception $e) {
+            $startDate = Carbon::parse('2026-01-10');
+        }
 
-        // Fetch team members (Robert Fox, Ralph Edwards, Jane Cooper, Leslie Alexander, Esther Howard, Guy Hawkins, Bessie Cooper, Kathryn Murphy)
-        $teamMembers = Employee::with(['department', 'leaves.leaveType'])
-            ->where('tenant_id', $tenant->id)
-            ->take(8)
-            ->get();
+        // 7 days of the calendar week
+        $days = [];
+        for ($i = 0; $i < 7; $i++) {
+            $currentDay = $startDate->copy()->addDays($i);
+            $days[] = [
+                'day' => $currentDay->format('d'),
+                'weekday' => $currentDay->format('D'),
+                'date' => $currentDay->format('Y-m-d'),
+            ];
+        }
 
+        $prevDate = $startDate->copy()->subDays(7)->format('Y-m-d');
+        $nextDate = $startDate->copy()->addDays(7)->format('Y-m-d');
+        $currentLabel = $startDate->format('d F Y');
+        $rangeLabel = $days[0]['day'] . ' ' . $startDate->format('M Y') . ' - ' . $days[6]['day'] . ' ' . $startDate->copy()->addDays(6)->format('M Y');
+
+        // Query team members with department and leaves
+        $query = Employee::with(['department', 'designation', 'leaves.leaveType'])
+            ->where('tenant_id', $tenant->id);
+
+        // Filter 1: Employee Search (Name or Email)
+        if ($request->filled('search')) {
+            $search = trim($request->search);
+            $query->where(function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
+        }
+
+        // Filter 2: Team / Department Filter
+        if ($request->filled('team') && $request->team !== 'all') {
+            $team = $request->team;
+            $query->whereHas('department', function($q) use ($team) {
+                $q->where('department_name', $team)
+                  ->orWhere('id', $team);
+            });
+        }
+
+        // Filter 3: Leave Type Filter
+        if ($request->filled('leave_type') && $request->leave_type !== 'all') {
+            $leaveType = $request->leave_type;
+            $query->whereHas('leaves', function($q) use ($leaveType) {
+                $q->where('leave_type_id', $leaveType)
+                  ->orWhereHas('leaveType', function($lq) use ($leaveType) {
+                      $lq->where('name', $leaveType)
+                         ->orWhere('name', 'like', "%{$leaveType}%");
+                  });
+            });
+        }
+
+        $teamMembers = $query->get();
+
+        // If no filter is applied, sort to show Screenshot 3 prototype members first
+        if (!$request->filled('search') && (!$request->filled('team') || $request->team === 'all') && (!$request->filled('leave_type') || $request->leave_type === 'all')) {
+            $priorityNames = [
+                'Robert Fox', 'Ralph Edwards', 'Jane Cooper', 'Leslie Alexander',
+                'Esther Howard', 'Guy Hawkins', 'Bessie Cooper', 'Kathryn Murphy'
+            ];
+            $teamMembers = $teamMembers->sortBy(function($emp) use ($priorityNames) {
+                $idx = array_search($emp->name, $priorityNames);
+                return $idx === false ? 999 : $idx;
+            })->values();
+        }
+
+        $departments = Department::where('tenant_id', $tenant->id)->get();
         $leaveTypes = LeaveType::where('tenant_id', $tenant->id)->get();
 
-        return view('leaves.calendar', compact('tenant', 'days', 'teamMembers', 'leaveTypes'));
+        return view('leaves.calendar', compact(
+            'tenant',
+            'days',
+            'teamMembers',
+            'departments',
+            'leaveTypes',
+            'startDate',
+            'prevDate',
+            'nextDate',
+            'currentLabel',
+            'rangeLabel'
+        ));
     }
 
     public function apply()

@@ -82,6 +82,9 @@ class DatabaseSeeder extends Seeder
         $deptFin = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'Finance', 'department_code' => 'FIN']);
         $deptOps = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'Operations', 'department_code' => 'OPS']);
         $deptMaint = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'Maintenance', 'department_code' => 'MNT']);
+        $deptHseq = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'HSEQ', 'department_code' => 'HSEQ']);
+        $deptIt = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'IT', 'department_code' => 'IT']);
+        $deptManning = Department::create(['tenant_id' => $tenant1->id, 'department_name' => 'Manning', 'department_code' => 'MAN']);
 
         // 5. Designations
         $desHrMgr = Designation::create(['tenant_id' => $tenant1->id, 'designation_name' => 'HR Manager', 'designation_level' => 'L5']);
@@ -89,6 +92,7 @@ class DatabaseSeeder extends Seeder
         $desClerk = Designation::create(['tenant_id' => $tenant1->id, 'designation_name' => 'Clerk', 'designation_level' => 'L2']);
         $desCashier = Designation::create(['tenant_id' => $tenant1->id, 'designation_name' => 'Cashier', 'designation_level' => 'L2']);
         $desOpsMgr = Designation::create(['tenant_id' => $tenant1->id, 'designation_name' => 'Operations Manager', 'designation_level' => 'L4']);
+        $desSpecialist = Designation::create(['tenant_id' => $tenant1->id, 'designation_name' => 'Specialist', 'designation_level' => 'L3']);
 
         // 6. Leave Types (Matching Screenshot 3 P-HR Calendar)
         $leavePaid = LeaveType::create(['tenant_id' => $tenant1->id, 'name' => 'Paid Leave', 'code' => 'PL', 'icon' => 'palm', 'badge_color' => 'success', 'days_allowed' => 15, 'is_paid' => true]);
@@ -105,14 +109,18 @@ class DatabaseSeeder extends Seeder
             ['code' => 'EMP-105', 'name' => 'Darrell Steward', 'dept' => $deptOps->id, 'desig' => $desClerk->id, 'status' => 'active', 'salary' => 48000.00, 'avatar' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-106', 'name' => 'Brooklyn Simmons', 'dept' => $deptHr->id, 'desig' => $desHrMgr->id, 'status' => 'active', 'salary' => 78000.00, 'avatar' => 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-107', 'name' => 'Dianne Russell', 'dept' => $deptFin->id, 'desig' => $desClerk->id, 'status' => 'active', 'salary' => 54000.00, 'avatar' => 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80'],
-            ['code' => 'EMP-108', 'name' => 'Leslie Alexander', 'dept' => $deptEng->id, 'desig' => $desEngLead->id, 'status' => 'active', 'salary' => 88000.00, 'avatar' => 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-108', 'name' => 'Leslie Alexander', 'dept' => $deptIt->id, 'desig' => $desSpecialist->id, 'status' => 'active', 'salary' => 88000.00, 'avatar' => 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-109', 'name' => 'Floyd Miles', 'dept' => $deptOps->id, 'desig' => $desOpsMgr->id, 'status' => 'active', 'salary' => 72000.00, 'avatar' => 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-110', 'name' => 'Cameron Williamson', 'dept' => $deptMaint->id, 'desig' => $desClerk->id, 'status' => 'active', 'salary' => 42000.00, 'avatar' => 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-111', 'name' => 'Devon Lane', 'dept' => $deptFin->id, 'desig' => $desClerk->id, 'status' => 'inactive', 'salary' => 46000.00, 'avatar' => 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=100&auto=format&fit=crop&q=80'],
-            ['code' => 'EMP-112', 'name' => 'Esther Howard', 'dept' => $deptOps->id, 'desig' => $desOpsMgr->id, 'status' => 'active', 'salary' => 74000.00, 'avatar' => 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-112', 'name' => 'Esther Howard', 'dept' => $deptManning->id, 'desig' => $desOpsMgr->id, 'status' => 'active', 'salary' => 74000.00, 'avatar' => 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-113', 'name' => 'Ralph Edwards', 'dept' => $deptMaint->id, 'desig' => $desClerk->id, 'status' => 'on_boarding', 'salary' => 40000.00, 'avatar' => 'https://images.unsplash.com/photo-1501196354995-cbb51c65aaea?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-114', 'name' => 'Kristin Watson', 'dept' => $deptOps->id, 'desig' => $desCashier->id, 'status' => 'on_boarding', 'salary' => 44000.00, 'avatar' => 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=100&auto=format&fit=crop&q=80'],
             ['code' => 'EMP-115', 'name' => 'Annette Black', 'dept' => $deptFin->id, 'desig' => $desClerk->id, 'status' => 'active', 'salary' => 50000.00, 'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-116', 'name' => 'Jane Cooper', 'dept' => $deptHseq->id, 'desig' => $desSpecialist->id, 'status' => 'active', 'salary' => 62000.00, 'avatar' => 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-117', 'name' => 'Guy Hawkins', 'dept' => $deptEng->id, 'desig' => $desEngLead->id, 'status' => 'active', 'salary' => 70000.00, 'avatar' => 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-118', 'name' => 'Bessie Cooper', 'dept' => $deptMaint->id, 'desig' => $desClerk->id, 'status' => 'active', 'salary' => 45000.00, 'avatar' => 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&auto=format&fit=crop&q=80'],
+            ['code' => 'EMP-119', 'name' => 'Kathryn Murphy', 'dept' => $deptOps->id, 'desig' => $desOpsMgr->id, 'status' => 'active', 'salary' => 75000.00, 'avatar' => 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=100&auto=format&fit=crop&q=80'],
         ];
 
         $employees = [];
@@ -141,13 +149,19 @@ class DatabaseSeeder extends Seeder
         $leaveEntries = [
             ['name' => 'Brooklyn Simmons', 'type' => $leavePaid->id, 'dates' => ['2026-01-20', '2026-01-22'], 'status' => 'pending', 'reason' => 'Annual family vacation'],
             ['name' => 'Dianne Russell', 'type' => $leaveSick->id, 'dates' => ['2026-01-18', '2026-01-18'], 'status' => 'pending', 'reason' => 'Doctor appointment & seasonal flu'],
-            ['name' => 'Leslie Alexander', 'type' => $leaveSick->id, 'dates' => ['2026-01-18', '2026-01-18'], 'status' => 'pending', 'reason' => 'Medical dental checkup'],
             ['name' => 'Floyd Miles', 'type' => $leavePaid->id, 'dates' => ['2026-02-12', '2026-02-17'], 'status' => 'pending', 'reason' => 'Annual personal leave'],
             ['name' => 'Cameron Williamson', 'type' => $leavePaid->id, 'dates' => ['2026-01-01', '2026-01-02'], 'status' => 'approved', 'reason' => 'New Year family holiday'],
             ['name' => 'Devon Lane', 'type' => $leaveCasual->id, 'dates' => ['2026-01-01', '2026-01-02'], 'status' => 'rejected', 'reason' => 'Short notice leave request'],
-            ['name' => 'Robert Fox', 'type' => $leavePaid->id, 'dates' => ['2026-01-11', '2026-01-12'], 'status' => 'approved', 'reason' => 'Attending urgent family matter.'],
+            // Prototype Screenshot 3 P-HR Leaves:
+            ['name' => 'Robert Fox', 'type' => $leavePaid->id, 'dates' => ['2026-01-11', '2026-01-12'], 'status' => 'approved', 'reason' => 'During this time, I need to attend to an urgent family matter.'],
             ['name' => 'Ralph Edwards', 'type' => $leaveSick->id, 'dates' => ['2026-01-13', '2026-01-13'], 'status' => 'approved', 'reason' => 'Headache and fever'],
-            ['name' => 'Esther Howard', 'type' => $leavePaid->id, 'dates' => ['2026-01-10', '2026-01-11'], 'status' => 'approved', 'reason' => 'Personal rest days'],
+            ['name' => 'Jane Cooper', 'type' => $leaveCasual->id, 'dates' => ['2026-01-15', '2026-01-16'], 'status' => 'approved', 'reason' => 'Personal family event.'],
+            ['name' => 'Leslie Alexander', 'type' => $leaveSick->id, 'dates' => ['2026-01-11', '2026-01-12'], 'status' => 'approved', 'reason' => 'Medical appointment.'],
+            ['name' => 'Esther Howard', 'type' => $leavePaid->id, 'dates' => ['2026-01-10', '2026-01-11'], 'status' => 'approved', 'reason' => 'Annual paid leave.'],
+            ['name' => 'Guy Hawkins', 'type' => $leaveCasual->id, 'dates' => ['2026-01-12', '2026-01-13'], 'status' => 'approved', 'reason' => 'Personal relocation & moving'],
+            ['name' => 'Bessie Cooper', 'type' => $leaveSick->id, 'dates' => ['2026-01-10', '2026-01-10'], 'status' => 'approved', 'reason' => 'Eye checkup.'],
+            ['name' => 'Bessie Cooper', 'type' => $leaveEmerg->id, 'dates' => ['2026-01-15', '2026-01-16'], 'status' => 'approved', 'reason' => 'During this time, I need to attend to an urgent family matter.'],
+            ['name' => 'Kathryn Murphy', 'type' => $leaveSick->id, 'dates' => ['2026-01-13', '2026-01-14'], 'status' => 'approved', 'reason' => 'High fever recovery.'],
         ];
 
         foreach ($leaveEntries as $entry) {
