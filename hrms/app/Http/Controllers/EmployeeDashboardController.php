@@ -105,15 +105,42 @@ class EmployeeDashboardController extends Controller
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
-            'face_descriptor' => 'required', // Array of 128 floats
+            'face_descriptor' => 'nullable', // Array of floats or extracted via snapshot
             'face_snapshot' => 'nullable|string', // Base64 snapshot or image URL
         ]);
 
         $employee = Employee::where('tenant_id', $tenantId)->findOrFail($validated['employee_id']);
 
-        $descriptor = $validated['face_descriptor'];
+        $descriptor = $request->input('face_descriptor');
         if (is_string($descriptor)) {
             $descriptor = json_decode($descriptor, true);
+        }
+
+        // If descriptor not provided, extract authentically from face_snapshot
+        if ((!$descriptor || (count($descriptor) !== 512 && count($descriptor) !== 128)) && !empty($validated['face_snapshot'])) {
+            $tmpFile = tempnam(sys_get_temp_dir(), 'enroll_');
+            file_put_contents($tmpFile, $validated['face_snapshot']);
+            $output = shell_exec("python " . escapeshellarg(base_path('app/Services/face_extractor.py')) . " " . escapeshellarg($tmpFile));
+            @unlink($tmpFile);
+
+            if ($output) {
+                $res = json_decode($output, true);
+                if (!empty($res['success']) && !empty($res['descriptor'])) {
+                    $descriptor = $res['descriptor'];
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Enrollment Failed: ' . ($res['error'] ?? 'No clear human face detected in camera capture.')
+                    ], 422);
+                }
+            }
+        }
+
+        if (!$descriptor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to extract facial biometric features. Please look directly into the camera.'
+            ], 422);
         }
 
         $employee->face_descriptor = $descriptor;
@@ -121,7 +148,7 @@ class EmployeeDashboardController extends Controller
             $employee->face_snapshot = $validated['face_snapshot'];
         }
         $employee->face_enrolled_at = now();
-        $employee->face_biometric_id = 'ARCFACE-BUFFALO-L-' . ($employee->employee_code ?? 'EMP-' . $employee->id);
+        $employee->face_biometric_id = 'BIO-FACE-' . ($employee->employee_code ?? 'EMP-' . $employee->id);
         $employee->save();
 
         return response()->json([

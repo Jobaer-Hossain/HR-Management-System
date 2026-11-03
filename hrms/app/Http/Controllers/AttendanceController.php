@@ -131,35 +131,22 @@ class AttendanceController extends Controller
             ], 404);
         }
 
-        // Auto-select employee if none passed or 'auto' passed
-        if ((!$simulatedEmpId || $simulatedEmpId === 'auto') && (!$scannedDescriptor || (count($scannedDescriptor) !== 512 && count($scannedDescriptor) !== 128))) {
-            $simulatedEmpId = session('portal_employee_id', 1);
-        }
+        // 1. If descriptor not passed directly from client-side face-api, extract it authentically from the face snapshot
+        if ((!$scannedDescriptor || (count($scannedDescriptor) !== 512 && count($scannedDescriptor) !== 128)) && !empty($faceSnapshot)) {
+            $tmpFile = tempnam(sys_get_temp_dir(), 'face_scan_');
+            file_put_contents($tmpFile, $faceSnapshot);
+            $pyOutput = shell_exec("python " . escapeshellarg(base_path('app/Services/face_extractor.py')) . " " . escapeshellarg($tmpFile));
+            @unlink($tmpFile);
 
-        // If simulated test ID is passed, construct or retrieve descriptor with realistic measurement sensor variance
-        if ($simulatedEmpId && (!$scannedDescriptor || (count($scannedDescriptor) !== 512 && count($scannedDescriptor) !== 128))) {
-            $targetEmp = $enrolledEmployees->firstWhere('id', (int)$simulatedEmpId);
-            if (!$targetEmp) {
-                $targetEmp = $enrolledEmployees->first();
-            }
-
-            if ($targetEmp && is_array($targetEmp->face_descriptor)) {
-                $scannedDescriptor = [];
-                $dim = count($targetEmp->face_descriptor);
-                $sumSq = 0;
-                foreach ($targetEmp->face_descriptor as $val) {
-                    // Add subtle real-world measurement sensor variance (+- 0.0025)
-                    $noise = (rand(-25, 25) / 10000.0);
-                    $newVal = $val + $noise;
-                    $scannedDescriptor[] = $newVal;
-                    $sumSq += $newVal * $newVal;
-                }
-                // Re-normalize unit vector
-                $mag = sqrt($sumSq);
-                if ($mag > 0) {
-                    foreach ($scannedDescriptor as $k => $v) {
-                        $scannedDescriptor[$k] = round($v / $mag, 5);
-                    }
+            if ($pyOutput) {
+                $pyRes = json_decode($pyOutput, true);
+                if (!empty($pyRes['success']) && !empty($pyRes['descriptor'])) {
+                    $scannedDescriptor = $pyRes['descriptor'];
+                } else {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Biometric Detection Failed: ' . ($pyRes['error'] ?? 'No clear human face detected in camera capture.')
+                    ], 422);
                 }
             }
         }
@@ -168,15 +155,28 @@ class AttendanceController extends Controller
         if (!$scannedDescriptor || ($inputDim !== 512 && $inputDim !== 128)) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid or incomplete facial scan captured. Please ensure your face is clearly visible in the camera.'
+                'message' => 'No human face detected in scan. Please ensure your face is clearly visible inside the reticle with proper lighting.'
             ], 422);
         }
 
-        // Facial Biometric Verification Algorithm: Cosine Similarity Matching
+        // 2. Authentic Facial Biometric Verification Algorithm (Cosine Similarity Matching)
         $bestMatch = null;
         $bestSimilarity = -1.0;
 
-        foreach ($enrolledEmployees as $emp) {
+        // If specific employee verification requested (e.g. self check-in on mobile or staff select)
+        $isSpecificEmployee = $simulatedEmpId && $simulatedEmpId !== 'auto';
+        $candidates = $isSpecificEmployee 
+            ? $enrolledEmployees->where('id', (int)$simulatedEmpId)
+            : $enrolledEmployees;
+
+        if ($candidates->isEmpty() && $isSpecificEmployee) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Selected employee has not enrolled their facial biometrics in the database yet.'
+            ], 404);
+        }
+
+        foreach ($candidates as $emp) {
             $dbVector = $emp->face_descriptor;
             if (!is_array($dbVector)) {
                 continue;
@@ -206,18 +206,24 @@ class AttendanceController extends Controller
             }
         }
 
-        // Verification Threshold (Cosine similarity >= 0.45 guarantees identity match)
-        $matchThreshold = 0.45;
+        // Authentic Biometric Verification Threshold
+        // For 512-D spatial descriptors: >= 0.88 confirms identity match; non-faces/imposters fall below.
+        $matchThreshold = ($inputDim === 128) ? 0.65 : 0.88;
 
         if (!$bestMatch || $bestSimilarity < $matchThreshold) {
+            $failMsg = $isSpecificEmployee && $bestMatch
+                ? "Biometric Verification Failed! The captured face does NOT match {$bestMatch->name}'s registered biometric profile."
+                : "Biometric Verification Failed! Unrecognized face. No matching employee biometric profile found in the database.";
+
             return response()->json([
                 'success' => false,
-                'message' => 'Biometric Verification Failed! No matching facial profile found in the database. Please try again or enroll your face first.'
+                'message' => $failMsg,
+                'similarity' => round($bestSimilarity, 3)
             ], 401);
         }
 
         $employee = $bestMatch;
-        $similarityPct = round(min(99.9, max(92.0, 90.0 + (($bestSimilarity - 0.45) / 0.55) * 9.9)), 1);
+        $similarityPct = round(min(99.9, max(92.0, 85.0 + (($bestSimilarity - $matchThreshold) / (1.0 - $matchThreshold)) * 14.9)), 1);
 
         // Optionally update snapshot if valid camera frame provided
         if (!empty($faceSnapshot) && strlen($faceSnapshot) > 100) {

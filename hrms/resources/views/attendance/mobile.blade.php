@@ -504,6 +504,7 @@
 @endpush
 
 @push('scripts')
+<script src="{{ asset('js/face-api.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const punchBtn = document.getElementById('triggerPunchScanBtn');
@@ -518,7 +519,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
     let stream = null;
     let isScanning = false;
+    let modelsLoaded = false;
     let activeEmployeeId = {{ $employee->id }};
+
+    // Load Local Neural Network Models
+    async function loadFaceModels() {
+        try {
+            await faceapi.nets.tinyFaceDetector.load('/models');
+            modelsLoaded = true;
+            console.log('Mobile face detector models loaded.');
+        } catch (err) {
+            console.warn('Mobile face models notice:', err);
+        }
+    }
+    loadFaceModels();
 
     // Live Digital Clock (every second)
     setInterval(() => {
@@ -550,8 +564,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
                 video.srcObject = stream;
             } catch (err) {
-                console.warn('Camera stream permission unavailable, simulation mode:', err);
-                cameraPrompt.innerText = 'Camera Ready (Simulated Mode)';
+                console.warn('Camera stream permission unavailable:', err);
+                cameraPrompt.innerText = 'Camera access blocked in browser';
             }
         }
     }
@@ -567,7 +581,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Reveal Camera Box
         cameraBox.style.display = 'block';
-        cameraPrompt.innerText = 'Scanning facial landmarks...';
+        cameraPrompt.innerText = 'Detecting face in frame...';
         punchText.innerText = 'Verifying...';
 
         let snapshotData = null;
@@ -578,36 +592,57 @@ document.addEventListener('DOMContentLoaded', function() {
                     video: { width: 480, height: 480, facingMode: 'user' }
                 });
                 video.srcObject = stream;
+                await new Promise(r => setTimeout(r, 600));
             }
         } catch (e) {
-            console.warn('Camera stream unavailable, continuing in verified sensor mode:', e);
-            cameraPrompt.innerText = 'Analyzing facial biometric sensor...';
+            console.warn('Camera access unavailable:', e);
+            cameraPrompt.innerText = 'Camera access denied';
+            alert("⚠️ Camera permission required for biometric facial verification.");
+            isScanning = false;
+            punchText.innerText = punchBtn.classList.contains('btn-checked-in') ? 'Check Out' : 'Check In';
+            return;
         }
 
-        setTimeout(async () => {
-            cameraPrompt.innerText = 'Verifying identity with database records...';
+        // 1. Strict Authentic Face Detection Check
+        if (video.readyState === 4 && modelsLoaded) {
+            cameraPrompt.innerText = 'Analyzing facial features...';
+            const check = await faceapi.detectSingleFace(
+                video,
+                new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.40 })
+            );
 
-            // Capture camera frame if video is ready
-            if (stream && video.videoWidth > 0 && canvas) {
-                try {
-                    canvas.width = 480;
-                    canvas.height = 480;
-                    const ctx = canvas.getContext('2d');
-                    ctx.drawImage(video, 0, 0, 480, 480);
-                    snapshotData = canvas.toDataURL('image/jpeg', 0.85);
-                } catch (ce) {
-                    console.warn('Snapshot frame capture note:', ce);
-                }
+            if (!check) {
+                cameraPrompt.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle-fill"></i> No Face Detected! Face camera</span>`;
+                alert("⚠️ Biometric Scan Rejected: No human face detected in camera! Please make sure your face is visible in front of the camera.");
+                isScanning = false;
+                punchText.innerText = punchBtn.classList.contains('btn-checked-in') ? 'Check Out' : 'Check In';
+                return;
             }
+        }
 
-            // Determine intended punch action based on current button state
-            const targetPunchType = punchBtn.classList.contains('btn-checked-in') ? 'check_out' : 'check_in';
+        cameraPrompt.innerText = 'Verifying identity with database biometrics...';
 
+        // Capture camera frame
+        if (video.videoWidth > 0 && canvas) {
             try {
-                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+                canvas.width = 480;
+                canvas.height = 480;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, 480, 480);
+                snapshotData = canvas.toDataURL('image/jpeg', 0.85);
+            } catch (ce) {
+                console.warn('Snapshot frame capture note:', ce);
+            }
+        }
 
-                const response = await fetch("{{ route('attendance.facescan') }}", {
+        // Determine intended punch action based on current button state
+        const targetPunchType = punchBtn.classList.contains('btn-checked-in') ? 'check_out' : 'check_in';
+
+        try {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+            const response = await fetch("{{ route('attendance.facescan') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

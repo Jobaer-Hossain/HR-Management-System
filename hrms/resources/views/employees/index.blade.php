@@ -500,16 +500,13 @@ document.addEventListener('DOMContentLoaded', function() {
             snapshotData = modalCanvas.toDataURL('image/jpeg', 0.85);
         }
 
-        // 2. Compute 512-D unit-normalized descriptor vector
-        const vector = [];
-        let sumSq = 0;
-        for (let i = 0; i < 512; i++) {
-            const v = (Math.random() * 2) - 1;
-            vector.push(v);
-            sumSq += v * v;
+        if (!snapshotData) {
+            modalAlert.className = 'alert alert-warning py-2 small mb-3 text-start';
+            modalAlert.innerHTML = `<i class="bi bi-camera-video-off me-1"></i> Please start your camera and face the lens before enrolling.`;
+            modalCaptureBtn.disabled = false;
+            modalCaptureBtn.innerHTML = `<i class="bi bi-camera me-1"></i> Capture & Store Biometrics in DB`;
+            return;
         }
-        const mag = Math.sqrt(sumSq);
-        const normalizedVector = vector.map(v => Math.round((v / mag) * 100000) / 100000);
 
         try {
             const res = await fetch("{{ route('employee.enroll-face') }}", {
@@ -520,7 +517,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     employee_id: currentEnrollEmpId,
-                    face_descriptor: normalizedVector,
                     face_snapshot: snapshotData
                 })
             });

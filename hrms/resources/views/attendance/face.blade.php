@@ -394,6 +394,7 @@
 @endpush
 
 @push('scripts')
+<script src="{{ asset('js/face-api.min.js') }}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const webcamVideo = document.getElementById('webcamVideo');
@@ -406,17 +407,61 @@ document.addEventListener('DOMContentLoaded', function() {
     const resultCard = document.getElementById('employeeResultCard');
 
     let stream = null;
+    let modelsLoaded = false;
+    let lastDetectedFace = null;
+    let isTracking = false;
+
+    // Load Local Neural Network Models
+    async function loadFaceModels() {
+        try {
+            await faceapi.nets.tinyFaceDetector.load('/models');
+            modelsLoaded = true;
+            console.log('Biometric face detector models loaded from local repository.');
+        } catch (err) {
+            console.warn('Local face models notice:', err);
+        }
+    }
+    loadFaceModels();
+
+    // Continuous Real-Time Face Tracking Loop
+    async function trackLiveFace() {
+        if (!isTracking) return;
+
+        if (stream && webcamVideo.readyState === 4 && modelsLoaded) {
+            try {
+                const detection = await faceapi.detectSingleFace(
+                    webcamVideo,
+                    new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.45 })
+                );
+
+                if (detection) {
+                    lastDetectedFace = detection;
+                    const score = Math.round(detection.score * 100);
+                    detectionStatusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-shield-check me-1"></i> Face Detected (${score}% clarity)</span>`;
+                    document.querySelectorAll('.corner-bracket').forEach(b => b.style.borderColor = '#22c55e');
+                } else {
+                    lastDetectedFace = null;
+                    detectionStatusText.innerHTML = `<span class="text-warning"><i class="bi bi-person-bounding-box me-1"></i> Align face inside reticle</span>`;
+                    document.querySelectorAll('.corner-bracket').forEach(b => b.style.borderColor = '#38bdf8');
+                }
+            } catch (e) {}
+        }
+
+        setTimeout(trackLiveFace, 350);
+    }
 
     // Start / Stop WebCam Stream
     async function toggleCamera() {
         if (stream) {
             // Stop camera
+            isTracking = false;
             stream.getTracks().forEach(track => track.stop());
             webcamVideo.srcObject = null;
             stream = null;
             placeholder.style.display = 'flex';
             camBtnText.innerText = 'Start Camera';
             detectionStatusText.innerText = 'Ready for Face Scan';
+            document.querySelectorAll('.corner-bracket').forEach(b => b.style.borderColor = '#38bdf8');
         } else {
             // Start camera
             try {
@@ -427,16 +472,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 webcamVideo.srcObject = stream;
                 placeholder.style.display = 'none';
                 camBtnText.innerText = 'Stop Camera';
-                detectionStatusText.innerText = 'Face Tracking: Active';
+                detectionStatusText.innerText = 'Searching for face...';
+                isTracking = true;
+                setTimeout(trackLiveFace, 500);
             } catch (err) {
-                console.warn('Camera access denied or unavailable, running in simulation mode:', err);
+                console.warn('Camera access unavailable:', err);
                 placeholder.style.display = 'flex';
                 placeholder.innerHTML = `
                     <i class="bi bi-camera-video-off scanner-placeholder-icon text-warning"></i>
-                    <p class="mb-1 fw-bold text-white">Camera Offline / Simulation Active</p>
-                    <small class="text-white-50">Select employee profile below and click "Scan Face Now"</small>
+                    <p class="mb-1 fw-bold text-white">Camera Offline</p>
+                    <small class="text-white-50">Please allow camera permissions in your browser to scan.</small>
                 `;
-                detectionStatusText.innerText = 'Simulation Mode Active';
+                detectionStatusText.innerText = 'Camera Offline';
             }
         }
     }
@@ -449,18 +496,33 @@ document.addEventListener('DOMContentLoaded', function() {
     toggleCamera();
 
     // Scan Face Action
-    scanFaceBtn.addEventListener('click', function() {
+    scanFaceBtn.addEventListener('click', async function() {
         const selectedEmpId = employeeSelect ? employeeSelect.value : 'auto';
         const captureCanvas = document.getElementById('captureCanvas');
         const flashOverlay = document.getElementById('cameraFlashOverlay');
         let snapshotData = null;
 
-        // Visual camera frame snapshot capture
+        // 1. Strict Authentic Face Validation Check
+        if (stream && webcamVideo.readyState === 4 && modelsLoaded) {
+            detectionStatusText.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Analyzing camera face...`;
+            const check = await faceapi.detectSingleFace(
+                webcamVideo,
+                new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.40 })
+            );
+
+            if (!check) {
+                detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle me-1"></i> No Human Face Detected!</span>`;
+                document.querySelectorAll('.corner-bracket').forEach(b => b.style.borderColor = '#ef4444');
+                alert("⚠️ Biometric Scan Rejected: No human face detected in the camera frame! Please face the camera directly in a well-lit area.");
+                return;
+            }
+        }
+
+        // 2. Capture actual video frame snapshot
         if (stream && webcamVideo.videoWidth > 0 && captureCanvas) {
             captureCanvas.width = 480;
             captureCanvas.height = 480;
             const ctx = captureCanvas.getContext('2d');
-            // Mirror image matching CSS transform
             ctx.translate(480, 0);
             ctx.scale(-1, 1);
             ctx.drawImage(webcamVideo, 0, 0, 480, 480);
@@ -473,118 +535,116 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
-        // Visual Scanning HUD Feedback
-        detectionStatusText.innerText = 'Scanning facial landmarks...';
+        // 3. Visual Scanning HUD Feedback
+        detectionStatusText.innerText = 'Matching facial biometrics with database...';
         scanFaceBtn.disabled = true;
-        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Verifying Face...`;
+        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Verifying Identity...`;
 
-        setTimeout(async () => {
-            try {
-                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
-                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+        try {
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
-                const response = await fetch("{{ route('attendance.facescan') }}", {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': csrfToken
-                    },
-                    body: JSON.stringify({
-                        employee_id: selectedEmpId,
-                        face_snapshot: snapshotData
-                    })
-                });
+            const response = await fetch("{{ route('attendance.facescan') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: JSON.stringify({
+                    employee_id: selectedEmpId,
+                    face_snapshot: snapshotData
+                })
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (data.success) {
-                    detectionStatusText.innerText = 'Face Verified (' + data.confidence + ' match)';
+            if (data.success) {
+                detectionStatusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Verified (${data.confidence})</span>`;
 
-                    // Update Bottom Employee Info Card
-                    const avatarImg = document.getElementById('resEmployeeAvatar');
-                    if (avatarImg) {
-                        avatarImg.src = snapshotData || data.employee.avatar;
-                    }
-                    document.getElementById('resEmployeeName').innerText = data.employee.name;
-                    document.getElementById('resEmployeeCode').innerText = data.employee.employee_code;
-                    document.getElementById('resEmployeeRole').innerText = data.employee.designation;
-                    document.getElementById('resEmployeeDept').innerText = data.employee.department;
-                    document.getElementById('resEmployeeEmail').innerText = data.employee.email;
-                    document.getElementById('matchConfidenceBadge').innerText = 'Match: ' + data.confidence + ' Confidence';
-                    document.getElementById('scanTimestampText').innerText = data.attendance.time;
-                    document.getElementById('punchTimeText').innerText = data.attendance.check_out !== '--:--' ? data.attendance.check_out : data.attendance.check_in;
-                    document.getElementById('punchLocationText').innerText = data.attendance.location;
-
-                    const actionBadge = document.getElementById('punchActionBadge');
-                    if (data.action === 'checked_out') {
-                        actionBadge.className = 'punch-action-pill punch-action-checkout';
-                        actionBadge.innerHTML = `<i class="bi bi-box-arrow-right me-1"></i> CHECKED OUT`;
-                        resultCard.style.borderLeftColor = '#e11d48';
-                    } else {
-                        actionBadge.className = 'punch-action-pill';
-                        actionBadge.innerHTML = `<i class="bi bi-box-arrow-in-right me-1"></i> CHECKED IN`;
-                        resultCard.style.borderLeftColor = '#22c55e';
-                    }
-
-                    resultCard.style.display = 'block';
-                    resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-                    // Audio Confirmation Chime
-                    try {
-                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                        const osc = audioCtx.createOscillator();
-                        const gain = audioCtx.createGain();
-                        osc.connect(gain);
-                        gain.connect(audioCtx.destination);
-                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
-                        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
-                        gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
-                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
-                        osc.start();
-                        osc.stop(audioCtx.currentTime + 0.35);
-                    } catch(e) {}
-
-                    // Append to live logs table
-                    const tbody = document.getElementById('scansTableBody');
-                    const emptyRow = document.getElementById('emptyScanRow');
-                    if (emptyRow) emptyRow.remove();
-
-                    const newRow = document.createElement('tr');
-                    newRow.className = 'table-success-subtle';
-                    newRow.innerHTML = `
-                        <td>
-                            <div class="d-flex align-items-center gap-2">
-                                <img src="${snapshotData || data.employee.avatar}" class="avatar-sm" alt="Emp" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
-                                <div>
-                                    <div class="fw-bold text-dark">${data.employee.name}</div>
-                                    <div class="text-muted" style="font-size: 0.74rem;">${data.employee.designation}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td><span class="badge bg-light text-dark border">${data.employee.department}</span></td>
-                        <td><span class="fw-bold text-primary">${data.attendance.time}</span></td>
-                        <td class="text-muted" style="font-size: 0.82rem;"><i class="bi bi-geo-alt text-primary"></i> ${data.attendance.location}</td>
-                        <td><span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill"><i class="bi bi-camera-video me-1"></i> Facial AI</span></td>
-                        <td>
-                            <span class="badge-approved d-inline-flex align-items-center gap-1">
-                                <span style="width: 5px; height: 5px; background: #16a34a; border-radius: 50%;"></span> Present
-                            </span>
-                        </td>
-                    `;
-                    tbody.insertBefore(newRow, tbody.firstChild);
-
-                } else {
-                    alert(data.message || 'Face verification failed.');
-                    detectionStatusText.innerText = 'Verification Failed';
+                // Update Bottom Employee Info Card
+                const avatarImg = document.getElementById('resEmployeeAvatar');
+                if (avatarImg) {
+                    avatarImg.src = snapshotData || data.employee.avatar;
                 }
-            } catch (err) {
-                console.error(err);
-                detectionStatusText.innerText = 'Scanner Error';
-            } finally {
-                scanFaceBtn.disabled = false;
-                scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span>Scan Face Now</span>`;
+                document.getElementById('resEmployeeName').innerText = data.employee.name;
+                document.getElementById('resEmployeeCode').innerText = data.employee.employee_code;
+                document.getElementById('resEmployeeRole').innerText = data.employee.designation;
+                document.getElementById('resEmployeeDept').innerText = data.employee.department;
+                document.getElementById('resEmployeeEmail').innerText = data.employee.email;
+                document.getElementById('matchConfidenceBadge').innerText = 'Match: ' + data.confidence + ' Confidence';
+                document.getElementById('scanTimestampText').innerText = data.attendance.time;
+                document.getElementById('punchTimeText').innerText = data.attendance.check_out !== '--:--' ? data.attendance.check_out : data.attendance.check_in;
+                document.getElementById('punchLocationText').innerText = data.attendance.location;
+
+                const actionBadge = document.getElementById('punchActionBadge');
+                if (data.action === 'checked_out') {
+                    actionBadge.className = 'punch-action-pill punch-action-checkout';
+                    actionBadge.innerHTML = `<i class="bi bi-box-arrow-right me-1"></i> CHECKED OUT`;
+                    resultCard.style.borderLeftColor = '#e11d48';
+                } else {
+                    actionBadge.className = 'punch-action-pill';
+                    actionBadge.innerHTML = `<i class="bi bi-box-arrow-in-right me-1"></i> CHECKED IN`;
+                    resultCard.style.borderLeftColor = '#22c55e';
+                }
+
+                resultCard.style.display = 'block';
+                resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+                // Audio Confirmation Chime
+                try {
+                    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                    gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.35);
+                } catch(e) {}
+
+                // Append to live logs table
+                const tbody = document.getElementById('scansTableBody');
+                const emptyRow = document.getElementById('emptyScanRow');
+                if (emptyRow) emptyRow.remove();
+
+                const newRow = document.createElement('tr');
+                newRow.className = 'table-success-subtle';
+                newRow.innerHTML = `
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="${snapshotData || data.employee.avatar}" class="avatar-sm" alt="Emp" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                            <div>
+                                <div class="fw-bold text-dark">${data.employee.name}</div>
+                                <div class="text-muted" style="font-size: 0.74rem;">${data.employee.designation}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td><span class="badge bg-light text-dark border">${data.employee.department}</span></td>
+                    <td><span class="fw-bold text-primary">${data.attendance.time}</span></td>
+                    <td class="text-muted" style="font-size: 0.82rem;"><i class="bi bi-geo-alt text-primary"></i> ${data.attendance.location}</td>
+                    <td><span class="badge bg-info-subtle text-info border border-info-subtle px-2 py-1 rounded-pill"><i class="bi bi-camera-video me-1"></i> Facial AI</span></td>
+                    <td>
+                        <span class="badge-approved d-inline-flex align-items-center gap-1">
+                            <span style="width: 5px; height: 5px; background: #16a34a; border-radius: 50%;"></span> Present
+                        </span>
+                    </td>
+                `;
+                tbody.insertBefore(newRow, tbody.firstChild);
+
+            } else {
+                detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i> Verification Failed</span>`;
+                alert(data.message || 'Face verification failed: Identity mismatch.');
             }
-        }, 650);
+        } catch (err) {
+            console.error(err);
+            detectionStatusText.innerText = 'Scanner Connection Error';
+        } finally {
+            scanFaceBtn.disabled = false;
+            scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span>Scan Face Now</span>`;
+        }
     });
 
     // Digital clock updater
