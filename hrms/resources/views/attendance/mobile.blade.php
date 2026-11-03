@@ -48,8 +48,11 @@
             <a href="{{ route('attendance.face') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.85rem;">
                 <i class="bi bi-camera-video me-1"></i> Gate Scanner
             </a>
-            <a href="{{ route('attendance.index') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.85rem;">
+            <a href="{{ route('attendance.index') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.85rem;">
                 <i class="bi bi-clock-history me-1"></i> Attendance Log
+            </a>
+            <a href="{{ route('login') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.85rem;">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Login Option
             </a>
         </div>
     </div>

@@ -15,6 +15,9 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
+            <a href="{{ route('login') }}" class="btn btn-outline-primary fw-bold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.88rem;">
+                <i class="bi bi-box-arrow-in-right me-1"></i> Login Option
+            </a>
             <a href="{{ route('attendance.index') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
                 <i class="bi bi-fingerprint me-1"></i> Fingerprint Biometric
             </a>

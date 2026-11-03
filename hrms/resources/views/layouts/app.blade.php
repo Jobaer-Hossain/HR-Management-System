@@ -426,6 +426,17 @@
                 </ul>
             </div>
 
+            <!-- Dedicated Quick Login Option in Sidebar -->
+            <div class="mb-3">
+                <a href="{{ route('login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-between py-2 px-3 fw-bold shadow-sm {{ request()->routeIs('login') ? 'ring-2 ring-primary' : '' }}" style="border-radius: 10px; font-size: 0.82rem; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none;">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-box-arrow-in-right fs-5 text-white"></i>
+                        <span class="text-white">Login Option</span>
+                    </div>
+                    <span class="badge bg-white text-primary" style="font-size: 0.68rem; font-weight: 700;">19 Staff</span>
+                </a>
+            </div>
+
             <!-- Role-Specific Navigation Links -->
             @if($currentRole === 'department_manager')
                 <div class="nav-section-title">MANAGER PORTAL</div>
@@ -601,6 +612,7 @@
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 0.85rem;">
                     <li><h6 class="dropdown-header">Logged In As {{ $activeRoleData['name'] }}</h6></li>
+                    <li><a class="dropdown-item fw-bold text-primary" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i> Login Option (All 19 Accounts)</a></li>
                     <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="bi bi-person me-2"></i> Role Profile</a></li>
                     <li><a class="dropdown-item" href="{{ route('about') }}"><i class="bi bi-sliders me-2"></i> System Settings</a></li>
                     <li><hr class="dropdown-divider"></li>
@@ -629,45 +641,49 @@
                     <span class="text-muted small d-none d-md-inline">&bull; {{ $activeRoleData['name'] }}</span>
                 </div>
 
-                <!-- 1-Click Role Switcher Pills -->
-                <div class="d-flex align-items-center gap-1 flex-wrap">
-                    <span class="text-muted small fw-semibold me-1 d-none d-lg-inline" style="font-size: 0.75rem;">Switch Dashboard View:</span>
-                    
-                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
-                        @csrf
-                        <input type="hidden" name="role" value="hr_manager">
-                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'hr_manager' ? 'btn-primary' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                            <i class="bi bi-shield-check me-1"></i> HR Admin
-                        </button>
-                    </form>
+                <div class="d-flex align-items-center gap-2 flex-wrap">
+                    <!-- 1-Click Role Switcher Pills -->
+                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                        <span class="text-muted small fw-semibold me-1 d-none d-lg-inline" style="font-size: 0.75rem;">Switch View:</span>
+                        
+                        <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="role" value="hr_manager">
+                            <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'hr_manager' ? 'btn-primary' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                <i class="bi bi-shield-check me-1"></i> HR Admin
+                            </button>
+                        </form>
 
-                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
-                        @csrf
-                        <input type="hidden" name="role" value="department_manager">
-                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'department_manager' ? 'btn-info text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                            <i class="bi bi-diagram-3-fill me-1"></i> Dept Manager
-                        </button>
-                    </form>
+                        <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="role" value="department_manager">
+                            <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'department_manager' ? 'btn-info text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                <i class="bi bi-diagram-3-fill me-1"></i> Dept Manager
+                            </button>
+                        </form>
 
-                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-secondary py-1 px-2" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;" title="Login with email & password">
-                        <i class="bi bi-box-arrow-in-right me-1"></i> Login / Accounts
+                        <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="role" value="finance">
+                            <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'finance' ? 'btn-success text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                <i class="bi bi-cash-coin me-1"></i> Finance
+                            </button>
+                        </form>
+
+                        <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                            @csrf
+                            <input type="hidden" name="role" value="employee">
+                            <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'employee' ? 'btn-dark text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                                <i class="bi bi-person-circle me-1"></i> Staff Portal
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Prominent Login Option Button -->
+                    <a href="{{ route('login') }}" class="btn btn-primary btn-sm px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-sm" style="border-radius: 8px; font-size: 0.78rem; background: linear-gradient(135deg, #2563eb, #1e40af); border: none;" title="Go to Login Page with All Accounts">
+                        <i class="bi bi-person-lock fs-6"></i>
+                        <span>Login Option</span>
                     </a>
-
-                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
-                        @csrf
-                        <input type="hidden" name="role" value="finance">
-                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'finance' ? 'btn-success text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                            <i class="bi bi-cash-coin me-1"></i> Finance & Payroll
-                        </button>
-                    </form>
-
-                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
-                        @csrf
-                        <input type="hidden" name="role" value="employee">
-                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'employee' ? 'btn-dark text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
-                            <i class="bi bi-person-circle me-1"></i> Staff Portal
-                        </button>
-                    </form>
                 </div>
             </div>
             <!-- Toast / Alerts -->
