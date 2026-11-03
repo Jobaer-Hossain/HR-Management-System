@@ -13,6 +13,35 @@
         </div>
     </div>
 
+    <div class="workspace-actions" aria-label="HR quick actions">
+        <div class="workspace-actions-label">
+            <i class="bi bi-lightning-charge-fill"></i>
+            <span>Quick actions</span>
+        </div>
+        <div class="workspace-action-list">
+            @can('employees.create')
+                <a href="{{ route('employees.create') }}" class="workspace-action primary">
+                    <i class="bi bi-person-plus"></i> Add employee
+                </a>
+            @endcan
+            @can('leaves.view')
+                <a href="{{ route('leaves.index') }}" class="workspace-action">
+                    <i class="bi bi-calendar2-check"></i> Review leave
+                </a>
+            @endcan
+            @can('attendance.view')
+                <a href="{{ route('attendance.index') }}" class="workspace-action">
+                    <i class="bi bi-fingerprint"></i> Attendance
+                </a>
+            @endcan
+            @can('payroll.view')
+                <a href="{{ route('payrolls.index') }}" class="workspace-action">
+                    <i class="bi bi-wallet2"></i> Payroll
+                </a>
+            @endcan
+        </div>
+    </div>
+
     <!-- Row of 3 Metric Cards (Matching Screenshot 1 EasyTeam) -->
     <div class="row g-4 mb-4">
         <!-- 1. Total Employees -->

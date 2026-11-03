@@ -28,7 +28,7 @@
     </div>
 
     @php
-        $enrolledStaffCount = $employees->whereNotNull('face_descriptor')->count();
+        $enrolledStaffCount = $employees->filter(fn ($employee) => $employee->hasReliableFaceBiometric())->count();
     @endphp
     @if($enrolledStaffCount === 0)
         <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-4 shadow-sm" style="border-left: 5px solid #f59e0b;">
@@ -115,8 +115,8 @@
                                 <select id="employeeSelect" class="form-select border-start-0" style="border-radius: 0 10px 10px 0; font-size: 0.85rem;">
                                     <option value="auto" selected>✨ Auto-Detect Identity (Camera AI)</option>
                                     @foreach($employees as $emp)
-                                        <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-avatar="{{ $emp->avatar }}" data-dept="{{ $emp->department->name ?? 'General' }}" data-desig="{{ $emp->designation->title ?? 'Staff' }}" data-enrolled="{{ $emp->face_descriptor ? '1' : '0' }}">
-                                            {{ $emp->name }} ({{ $emp->department->name ?? 'General' }}) — {{ $emp->face_descriptor ? '🟢 Enrolled' : '⚠️ Not Enrolled' }}
+                                        <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-avatar="{{ $emp->avatar }}" data-dept="{{ $emp->department->name ?? 'General' }}" data-desig="{{ $emp->designation->title ?? 'Staff' }}" data-enrolled="{{ $emp->hasReliableFaceBiometric() ? '1' : '0' }}">
+                                            {{ $emp->name }} ({{ $emp->department->name ?? 'General' }}) — {{ $emp->hasReliableFaceBiometric() ? '🟢 Enrolled' : '⚠️ Not Enrolled' }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -134,6 +134,12 @@
                                 <i class="bi bi-scan"></i>
                                 <span>Scan Face Now</span>
                             </button>
+                        </div>
+                        <div class="col-12">
+                            <div class="d-flex align-items-center justify-content-center gap-2 text-success small fw-semibold" id="autoAttendanceStatus">
+                                <i class="bi bi-broadcast-pin"></i>
+                                <span>Automatic check-in is active when Auto-Detect Identity is selected.</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -431,6 +437,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let modelsLoaded = false;
     let lastDetectedFace = null;
     let isTracking = false;
+    let autoScanTimer = null;
+    let autoScanBusy = false;
 
     // Load Local Neural Network Models
     async function loadFaceModels() {
@@ -479,6 +487,8 @@ document.addEventListener('DOMContentLoaded', function() {
             stream.getTracks().forEach(track => track.stop());
             webcamVideo.srcObject = null;
             stream = null;
+            clearInterval(autoScanTimer);
+            autoScanTimer = null;
             placeholder.style.display = 'flex';
             camBtnText.innerText = 'Start Camera';
             detectionStatusText.innerText = 'Ready for Face Scan';
@@ -496,6 +506,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 detectionStatusText.innerText = 'Searching for face...';
                 isTracking = true;
                 setTimeout(trackLiveFace, 500);
+                clearInterval(autoScanTimer);
+                autoScanTimer = setInterval(() => {
+                    if (employeeSelect?.value === 'auto' && stream && !autoScanBusy && (lastDetectedFace || !modelsLoaded)) {
+                        scanFaceNow(true);
+                    }
+                }, 2500);
             } catch (err) {
                 console.warn('Camera access unavailable:', err);
                 placeholder.style.display = 'flex';
@@ -516,12 +532,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-attempt to start camera on load
     toggleCamera();
 
-    // Scan Face Action
-    scanFaceBtn.addEventListener('click', async function() {
+    // Scan Face Action. Automatic mode only checks in once and never toggles checkout.
+    async function scanFaceNow(isAutomatic = false) {
+        if (autoScanBusy) return;
+        autoScanBusy = true;
         const selectedEmpId = employeeSelect ? employeeSelect.value : 'auto';
         const captureCanvas = document.getElementById('captureCanvas');
         const flashOverlay = document.getElementById('cameraFlashOverlay');
-        let snapshotData = null;
+        const faceFrames = [];
 
         // 1. Strict Authentic Face Validation Check
         if (stream && webcamVideo.readyState === 4 && modelsLoaded) {
@@ -534,26 +552,39 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!check) {
                 detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-x-circle me-1"></i> No Human Face Detected!</span>`;
                 document.querySelectorAll('.corner-bracket').forEach(b => b.style.borderColor = '#ef4444');
-                alert("⚠️ Biometric Scan Rejected: No human face detected in the camera frame! Please face the camera directly in a well-lit area.");
+                if (!isAutomatic) {
+                    alert("⚠️ Biometric Scan Rejected: No human face detected in the camera frame! Please face the camera directly in a well-lit area.");
+                }
+                autoScanBusy = false;
                 return;
             }
         }
 
-        // 2. Capture actual video frame snapshot
+        // 2. Capture three actual video frames. The server extracts the embedding itself.
         if (stream && webcamVideo.videoWidth > 0 && captureCanvas) {
             captureCanvas.width = 480;
             captureCanvas.height = 480;
             const ctx = captureCanvas.getContext('2d');
             ctx.translate(480, 0);
             ctx.scale(-1, 1);
-            ctx.drawImage(webcamVideo, 0, 0, 480, 480);
-            snapshotData = captureCanvas.toDataURL('image/jpeg', 0.85);
+            for (let frame = 0; frame < 3; frame++) {
+                ctx.drawImage(webcamVideo, 0, 0, 480, 480);
+                faceFrames.push(captureCanvas.toDataURL('image/jpeg', 0.85));
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
 
             // Shutter flash effect
             if (flashOverlay) {
                 flashOverlay.style.opacity = '0.85';
                 setTimeout(() => { flashOverlay.style.opacity = '0'; }, 150);
             }
+        }
+
+        if (faceFrames.length < 3) {
+            detectionStatusText.innerText = 'Could not capture the required live frames. Please retry.';
+            scanFaceBtn.disabled = false;
+            autoScanBusy = false;
+            return;
         }
 
         // 3. Visual Scanning HUD Feedback
@@ -573,19 +604,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     employee_id: selectedEmpId,
-                    face_snapshot: snapshotData
+                    face_frames: faceFrames,
+                    punch_type: isAutomatic ? 'auto_check_in' : 'auto'
                 })
             });
 
             const data = await response.json();
 
             if (data.success) {
-                detectionStatusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> Verified (${data.confidence})</span>`;
+                const alreadyRecorded = data.action === 'already_checked_in' || data.action === 'already_checked_out';
+                detectionStatusText.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill me-1"></i> ${alreadyRecorded ? 'Attendance already recorded' : `Verified (${data.confidence})`}</span>`;
 
                 // Update Bottom Employee Info Card
                 const avatarImg = document.getElementById('resEmployeeAvatar');
                 if (avatarImg) {
-                    avatarImg.src = snapshotData || data.employee.avatar;
+                    avatarImg.src = faceFrames[0] || data.employee.avatar;
                 }
                 document.getElementById('resEmployeeName').innerText = data.employee.name;
                 document.getElementById('resEmployeeCode').innerText = data.employee.employee_code;
@@ -611,8 +644,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultCard.style.display = 'block';
                 resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-                // Audio Confirmation Chime
+                // Audio confirmation only for the first automatic/manual punch.
                 try {
+                    if (alreadyRecorded) throw new Error('repeat');
                     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
@@ -626,6 +660,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     osc.stop(audioCtx.currentTime + 0.35);
                 } catch(e) {}
 
+                if (alreadyRecorded) return;
+
                 // Append to live logs table
                 const tbody = document.getElementById('scansTableBody');
                 const emptyRow = document.getElementById('emptyScanRow');
@@ -636,7 +672,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 newRow.innerHTML = `
                     <td>
                         <div class="d-flex align-items-center gap-2">
-                            <img src="${snapshotData || data.employee.avatar}" class="avatar-sm" alt="Emp" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
+                            <img src="${faceFrames[0] || data.employee.avatar}" class="avatar-sm" alt="Emp" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                             <div>
                                 <div class="fw-bold text-dark">${data.employee.name}</div>
                                 <div class="text-muted" style="font-size: 0.74rem;">${data.employee.designation}</div>
@@ -657,7 +693,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             } else {
                 detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i> Verification Failed</span>`;
-                alert(data.message || 'Face verification failed: Identity mismatch.');
+                if (!isAutomatic) {
+                    alert(data.message || 'Face verification failed: Identity mismatch.');
+                } else {
+                    detectionStatusText.innerHTML = `<span class="text-warning"><i class="bi bi-hourglass-split me-1"></i> Waiting for a verified live face...</span>`;
+                }
             }
         } catch (err) {
             console.error(err);
@@ -665,8 +705,11 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             scanFaceBtn.disabled = false;
             scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span>Scan Face Now</span>`;
+            autoScanBusy = false;
         }
-    });
+    }
+
+    scanFaceBtn.addEventListener('click', () => scanFaceNow(false));
 
     // Digital clock updater
     setInterval(() => {

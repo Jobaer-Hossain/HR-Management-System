@@ -5,39 +5,24 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Tenant;
+use App\Services\FacialBiometricService;
 use Illuminate\Http\Request;
 
 class AttendanceController extends Controller
 {
     public function index()
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = $this->tenantId();
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        // Get or create today's record for employee #1 (or logged-in staff)
-        $employee = Employee::where('tenant_id', $tenant->id)->first();
-        
-        $todayAttendance = null;
-        if ($employee) {
-            $todayAttendance = Attendance::firstOrCreate(
-                [
-                    'tenant_id' => $tenant->id,
-                    'employee_id' => $employee->id,
-                    'attendance_date' => date('Y-m-d')
-                ],
-                [
-                    'check_in' => '09:41:00',
-                    'check_out' => null,
-                    'worked_minutes' => 310,
-                    'status' => 'present',
-                    'location_note' => 'You are 10 Km away from your office.',
-                    'source' => 'web_biometric',
-                ]
-            );
-        }
+        $employee = $this->currentEmployee($tenant->id);
+        $todayAttendance = $employee
+            ? Attendance::where('tenant_id', $tenant->id)->where('employee_id', $employee->id)->whereDate('attendance_date', today())->first()
+            : null;
 
         $attendances = Attendance::with(['employee.department', 'employee.designation'])
             ->where('tenant_id', $tenant->id)
+            ->when(auth()->user()?->isEmployee(), fn ($query) => $query->where('employee_id', $employee?->id))
             ->latest('attendance_date')
             ->paginate(10);
 
@@ -49,7 +34,7 @@ class AttendanceController extends Controller
      */
     public function faceScanner()
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = $this->tenantId();
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
         $employees = Employee::with(['department', 'designation'])
@@ -72,25 +57,17 @@ class AttendanceController extends Controller
      */
     public function mobileAttendance(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = $this->tenantId();
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        $employeeId = $request->get('emp_id', session('portal_employee_id', 1));
-        $employee = Employee::with(['department', 'designation'])
-            ->where('tenant_id', $tenant->id)
-            ->find($employeeId);
+        $employee = $this->currentEmployee($tenant->id, $request->integer('emp_id'));
+        abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
-        if (!$employee) {
-            $employee = Employee::with(['department', 'designation'])
-                ->where('tenant_id', $tenant->id)
-                ->first();
-        }
-
-        $allStaff = Employee::where('tenant_id', $tenant->id)->get();
+        $allStaff = auth()->user()?->isEmployee() ? collect([$employee]) : Employee::where('tenant_id', $tenant->id)->get();
 
         $todayAttendance = Attendance::where('tenant_id', $tenant->id)
             ->where('employee_id', $employee ? $employee->id : 1)
-            ->where('attendance_date', date('Y-m-d'))
+            ->whereDate('attendance_date', today())
             ->first();
 
         return view('attendance.mobile', compact('tenant', 'employee', 'allStaff', 'todayAttendance'));
@@ -99,31 +76,36 @@ class AttendanceController extends Controller
     /**
      * Process face detection and attendance logging via biometric vector verification
      */
-    public function processFaceScan(Request $request)
+    public function processFaceScan(Request $request, FacialBiometricService $biometrics)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = $this->tenantId();
 
-        // Scanned biometric descriptor from camera (512-D vector)
-        $scannedDescriptor = $request->input('descriptor');
-        if (is_string($scannedDescriptor)) {
-            $scannedDescriptor = json_decode($scannedDescriptor, true);
-        }
-
-        // Camera live snapshot (base64)
-        $faceSnapshot = $request->input('face_snapshot');
+        $validated = $request->validate([
+            'face_frames' => 'required|array|min:3|max:5',
+            'face_frames.*' => 'required|string|max:5000000',
+            'employee_id' => 'nullable',
+            'punch_type' => 'nullable|in:auto,auto_check_in,check_in,check_out',
+            'location_note' => 'nullable|string|max:255',
+        ]);
 
         // Requested punch mode ('auto', 'check_in', 'check_out')
-        $requestedPunchType = $request->input('punch_type', 'auto');
+        $requestedPunchType = $validated['punch_type'] ?? 'auto';
 
         // Selected employee ID or simulated test profile
-        $simulatedEmpId = $request->input('employee_id');
+        $simulatedEmpId = $validated['employee_id'] ?? null;
 
         // If specific employee verification requested (e.g. self check-in on mobile or staff select)
         $isSpecificEmployee = $simulatedEmpId && $simulatedEmpId !== 'auto';
+        if ($isSpecificEmployee && auth()->user()?->isEmployee()) {
+            $ownEmployee = $this->currentEmployee($tenantId);
+            if (!$ownEmployee || (int) $simulatedEmpId !== (int) $ownEmployee->id) {
+                return response()->json(['success' => false, 'message' => 'You can only record attendance for your own profile.'], 403);
+            }
+        }
         if ($isSpecificEmployee) {
             $targetEmp = Employee::where('tenant_id', $tenantId)->find($simulatedEmpId);
             $targetName = $targetEmp ? $targetEmp->name : "Selected employee";
-            if (!$targetEmp || empty($targetEmp->face_descriptor)) {
+            if (!$targetEmp || !$targetEmp->hasReliableFaceBiometric()) {
                 return response()->json([
                     'success' => false,
                     'message' => "Facial biometrics not enrolled yet for {$targetName}. Admin must take their facial photo in the Employee Directory first before attendance can be logged."
@@ -134,6 +116,7 @@ class AttendanceController extends Controller
         // Fetch all employees with enrolled face descriptors stored in database
         $enrolledEmployees = Employee::with(['department', 'designation'])
             ->where('tenant_id', $tenantId)
+            ->where('face_engine', 'scrfd-arcface-onnx')
             ->whereNotNull('face_descriptor')
             ->get();
 
@@ -144,65 +127,32 @@ class AttendanceController extends Controller
             ], 403);
         }
 
-        // 1. If descriptor not passed directly from client-side face-api, extract it authentically from the face snapshot
-        if ((!$scannedDescriptor || (count($scannedDescriptor) !== 512 && count($scannedDescriptor) !== 128)) && !empty($faceSnapshot)) {
-            $tmpFile = tempnam(sys_get_temp_dir(), 'face_scan_');
-            file_put_contents($tmpFile, $faceSnapshot);
-            $pyOutput = shell_exec("python " . escapeshellarg(base_path('app/Services/face_extractor.py')) . " " . escapeshellarg($tmpFile));
-            @unlink($tmpFile);
-
-            if ($pyOutput) {
-                $pyRes = json_decode($pyOutput, true);
-                if (!empty($pyRes['success']) && !empty($pyRes['descriptor'])) {
-                    $scannedDescriptor = $pyRes['descriptor'];
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Biometric Detection Failed: ' . ($pyRes['error'] ?? 'No clear human face detected in camera capture.')
-                    ], 422);
-                }
-            }
-        }
-
-        $inputDim = is_array($scannedDescriptor) ? count($scannedDescriptor) : 0;
-        if (!$scannedDescriptor || ($inputDim !== 512 && $inputDim !== 128)) {
+        try {
+            $scanResult = $biometrics->extract($validated['face_frames'], true);
+        } catch (\Throwable $exception) {
             return response()->json([
                 'success' => false,
-                'message' => 'No human face detected in scan. Please ensure your face is clearly visible inside the reticle with proper lighting.'
+                'message' => 'Biometric verification failed: ' . $exception->getMessage(),
             ], 422);
         }
+        $scannedDescriptor = $scanResult['descriptor'];
+        $faceSnapshot = $validated['face_frames'][0];
 
         // 2. Authentic Facial Biometric Verification Algorithm (Cosine Similarity Matching)
         $bestMatch = null;
         $bestSimilarity = -1.0;
 
-        $candidates = $isSpecificEmployee 
-            ? $enrolledEmployees->where('id', (int)$simulatedEmpId)
-            : $enrolledEmployees;
+        if (auth()->user()?->isEmployee()) {
+            $candidates = $enrolledEmployees->where('email', auth()->user()->email);
+        } else {
+            $candidates = $isSpecificEmployee
+                ? $enrolledEmployees->where('id', (int) $simulatedEmpId)
+                : $enrolledEmployees;
+        }
 
         foreach ($candidates as $emp) {
-            $dbVector = $emp->face_descriptor;
-            if (!is_array($dbVector)) {
-                continue;
-            }
-
-            $dim = min(count($scannedDescriptor), count($dbVector));
-            if ($dim === 0) continue;
-
-            // Compute Cosine Similarity: sum(a_i * b_i) / (norm(a) * norm(b))
-            $dot = 0;
-            $normA = 0;
-            $normB = 0;
-            for ($i = 0; $i < $dim; $i++) {
-                $a = (float)($scannedDescriptor[$i] ?? 0);
-                $b = (float)($dbVector[$i] ?? 0);
-                $dot += $a * $b;
-                $normA += $a * $a;
-                $normB += $b * $b;
-            }
-
-            $denom = sqrt($normA) * sqrt($normB);
-            $cosineSim = $denom > 0 ? ($dot / $denom) : 0;
+            $dbVector = is_array($emp->face_descriptor) ? $emp->face_descriptor : [];
+            $cosineSim = $biometrics->similarity($scannedDescriptor, $dbVector);
 
             if ($cosineSim > $bestSimilarity) {
                 $bestSimilarity = $cosineSim;
@@ -210,9 +160,7 @@ class AttendanceController extends Controller
             }
         }
 
-        // Authentic Biometric Verification Threshold
-        // For 512-D spatial descriptors: >= 0.88 confirms identity match; non-faces/imposters fall below.
-        $matchThreshold = ($inputDim === 128) ? 0.65 : 0.88;
+        $matchThreshold = config('face.minimum_similarity');
 
         if (!$bestMatch || $bestSimilarity < $matchThreshold) {
             $failMsg = $isSpecificEmployee && $bestMatch
@@ -227,7 +175,7 @@ class AttendanceController extends Controller
         }
 
         $employee = $bestMatch;
-        $similarityPct = round(min(99.9, max(92.0, 85.0 + (($bestSimilarity - $matchThreshold) / (1.0 - $matchThreshold)) * 14.9)), 1);
+        $similarityPct = round(max(0, min(99.9, $bestSimilarity * 100)), 1);
 
         // Optionally update snapshot if valid camera frame provided
         if (!empty($faceSnapshot) && strlen($faceSnapshot) > 100) {
@@ -235,7 +183,7 @@ class AttendanceController extends Controller
             $employee->save();
         }
 
-        $today = date('Y-m-d');
+        $today = now()->toDateString();
         $currentTime = date('H:i:s');
         $displayCurrentTime = date('h:i A');
 
@@ -244,7 +192,7 @@ class AttendanceController extends Controller
             ->where('attendance_date', $today)
             ->first();
 
-        $locationNote = $request->input('location_note', 'Facial Terminal Gate 01 - Verified HQ');
+        $locationNote = $validated['location_note'] ?? 'Facial Terminal Gate 01 - Verified HQ';
 
         if (!$attendance) {
             // First punch of the day: Always Check In
@@ -260,6 +208,21 @@ class AttendanceController extends Controller
             ]);
             $action = 'checked_in';
             $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
+        } elseif ($requestedPunchType === 'auto_check_in') {
+            // Background scanning is idempotent: it can never turn a check-in into a checkout.
+            if ($attendance->check_in) {
+                $action = $attendance->check_out ? 'already_checked_out' : 'already_checked_in';
+                $message = $attendance->check_out
+                    ? "Attendance already completed for {$employee->name} today."
+                    : "{$employee->name} is already checked in today.";
+            } else {
+                $attendance->check_in = $currentTime;
+                $attendance->status = 'present';
+                $attendance->source = 'facial_recognition';
+                $attendance->save();
+                $action = 'checked_in';
+                $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
+            }
         } elseif ($requestedPunchType === 'check_in') {
             // Explicit Check In requested
             if (!$attendance->check_in) {
@@ -311,6 +274,11 @@ class AttendanceController extends Controller
             }
         }
 
+        $attendance->biometric_similarity = $bestSimilarity;
+        $attendance->biometric_engine = $scanResult['engine'] ?? 'scrfd-arcface-onnx';
+        $attendance->biometric_frames = $scanResult['liveness']['frames'] ?? count($validated['face_frames']);
+        $attendance->save();
+
         $workedHours = $attendance->worked_minutes ? round($attendance->worked_minutes / 60, 1) . ' hrs' : '0.0 hrs';
 
         return response()->json([
@@ -346,14 +314,15 @@ class AttendanceController extends Controller
 
     public function checkIn(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $empId = $request->input('employee_id', 1);
+        $tenantId = $this->tenantId();
+        $employee = $this->currentEmployee($tenantId, $request->integer('employee_id'));
+        abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
         $attendance = Attendance::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
-                'employee_id' => $empId,
-                'attendance_date' => date('Y-m-d')
+                'employee_id' => $employee->id,
+                'attendance_date' => now()->toDateString()
             ],
             [
                 'check_in' => date('H:i:s'),
@@ -368,30 +337,35 @@ class AttendanceController extends Controller
 
     public function checkOut(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $empId = $request->input('employee_id', 1);
+        $tenantId = $this->tenantId();
+        $employee = $this->currentEmployee($tenantId, $request->integer('employee_id'));
+        abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
         $attendance = Attendance::where('tenant_id', $tenantId)
-            ->where('employee_id', $empId)
-            ->where('attendance_date', date('Y-m-d'))
+            ->where('employee_id', $employee->id)
+            ->whereDate('attendance_date', today())
             ->first();
 
-        if ($attendance) {
-            $attendance->check_out = date('H:i:s');
-            $attendance->save();
+        if (!$attendance || !$attendance->check_in) {
+            return redirect()->back()->with('error', 'Check-in is required before checking out.');
         }
+
+        $attendance->check_out = now()->format('H:i:s');
+        $attendance->worked_minutes = max(0, round((strtotime($attendance->check_out) - strtotime($attendance->check_in)) / 60));
+        $attendance->save();
 
         return redirect()->back()->with('success', 'Checked Out successfully at ' . date('h:i A') . '. Have a great evening!');
     }
 
     public function toggleBreak(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $empId = $request->input('employee_id', 1);
+        $tenantId = $this->tenantId();
+        $employee = $this->currentEmployee($tenantId, $request->integer('employee_id'));
+        abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
         $attendance = Attendance::where('tenant_id', $tenantId)
-            ->where('employee_id', $empId)
-            ->where('attendance_date', date('Y-m-d'))
+            ->where('employee_id', $employee->id)
+            ->whereDate('attendance_date', today())
             ->first();
 
         if ($attendance) {
@@ -407,5 +381,22 @@ class AttendanceController extends Controller
         }
 
         return redirect()->back()->with('info', 'Break toggled.');
+    }
+
+    private function tenantId(): int
+    {
+        return (int) (auth()->user()?->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1);
+    }
+
+    private function currentEmployee(int $tenantId, ?int $requestedId = null): ?Employee
+    {
+        $query = Employee::with(['department', 'designation'])->where('tenant_id', $tenantId);
+
+        if (auth()->user()?->isEmployee()) {
+            return $query->whereKey(auth()->user()->employee_id)->first()
+                ?? $query->where('email', auth()->user()->email)->first();
+        }
+
+        return $requestedId ? $query->find($requestedId) : $query->first();
     }
 }

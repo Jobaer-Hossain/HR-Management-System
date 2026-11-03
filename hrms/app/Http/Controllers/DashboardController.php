@@ -14,7 +14,7 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         // Role-Based Dashboard Routing
-        $activeRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+        $activeRole = auth()->user()->role;
 
         if ($activeRole === 'department_manager' && !$request->has('force_admin')) {
             return app(ManagerDashboardController::class)->index($request);
@@ -32,12 +32,11 @@ class DashboardController extends Controller
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        $totalEmployees = 128;
-        $activeEmployees = 121;
-        $inactiveEmployees = 7;
+        $totalEmployees = Employee::where('tenant_id', $tenant->id)->count();
+        $activeEmployees = Employee::where('tenant_id', $tenant->id)->where('status', 'active')->count();
+        $inactiveEmployees = Employee::where('tenant_id', $tenant->id)->where('status', 'inactive')->count();
 
         $pendingLeavesCount = LeaveApplication::where('tenant_id', $tenant->id)->where('status', 'pending')->count();
-        if ($pendingLeavesCount < 5) $pendingLeavesCount = 5;
 
         $payrollRun = PayrollRun::where('tenant_id', $tenant->id)->latest()->first();
         $payrollTotal = $payrollRun ? (float)$payrollRun->total_payroll : 512872.92;
@@ -122,23 +121,31 @@ class DashboardController extends Controller
 
     public function switchRole(Request $request)
     {
-        $role = $request->input('role', 'hr_manager');
+        abort_unless(auth()->check(), 403);
+
+        if (!in_array(auth()->user()->role, ['hr_manager', 'admin', 'super_admin', 'owner'], true)) {
+            return redirect()->route('dashboard')->with('error', 'Only administrators can switch user views.');
+        }
+
+        $role = $request->validate([
+            'role' => 'required|in:hr_manager,department_manager,finance,employee',
+        ])['role'];
         $validRoles = ['hr_manager', 'department_manager', 'finance', 'employee'];
 
         if (in_array($role, $validRoles)) {
-            session(['active_role' => $role]);
+            $target = \App\Models\User::where('tenant_id', auth()->user()->tenant_id)
+                ->where('role', $role)
+                ->where('status', 'active')
+                ->first();
 
-            // Synchronize Auth User & Active Profile
-            $roleUsers = [
-                'hr_manager' => ['userId' => 1, 'empId' => 1],
-                'department_manager' => ['userId' => 2, 'empId' => 2],
-                'finance' => ['userId' => 3, 'empId' => 4],
-                'employee' => ['userId' => 4, 'empId' => 1],
-            ];
-
-            if (isset($roleUsers[$role])) {
-                \Illuminate\Support\Facades\Auth::loginUsingId($roleUsers[$role]['userId']);
-                session(['portal_employee_id' => $roleUsers[$role]['empId']]);
+            if ($target) {
+                \Illuminate\Support\Facades\Auth::login($target);
+                session()->forget('active_role');
+                if ($target->employee_id) {
+                    session(['portal_employee_id' => $target->employee_id]);
+                } else {
+                    session()->forget('portal_employee_id');
+                }
             }
         }
 
@@ -158,8 +165,9 @@ class DashboardController extends Controller
 
     public function switchTenant(Request $request)
     {
-        $tenantId = $request->input('tenant_id');
-        $tenant = Tenant::find($tenantId);
+        $tenantId = $request->validate(['tenant_id' => 'required|integer'])['tenant_id'];
+        $tenant = Tenant::whereKey($tenantId)->first();
+        abort_unless($tenant && (auth()->user()->isHrManager() || auth()->user()->tenant_id === $tenant->id), 403);
         if ($tenant) {
             session([
                 'active_tenant_id' => $tenant->id,

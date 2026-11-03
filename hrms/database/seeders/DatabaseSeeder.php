@@ -57,6 +57,18 @@ class DatabaseSeeder extends Seeder
             'status' => 'active',
         ]);
 
+        User::updateOrCreate(
+            ['email' => 'superadmin@hrms.com'],
+            [
+                'tenant_id' => $tenant1->id,
+                'name' => 'Super Admin',
+                'password' => Hash::make('password123'),
+                'role' => 'super_admin',
+                'avatar' => null,
+                'status' => 'active',
+            ]
+        );
+
         User::create([
             'tenant_id' => $tenant1->id,
             'name' => 'Robert Fox',

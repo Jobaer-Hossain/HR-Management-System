@@ -50,12 +50,16 @@ class LoginController extends Controller
         session(['active_role' => $user->role]);
         session(['current_tenant_id' => $user->tenant_id ?? 1]);
 
-        $employee = \App\Models\Employee::where('email', $user->email)->first();
+        $employee = $user->employee
+            ?? \App\Models\Employee::where('email', $user->email)->first();
         if ($employee) {
             session(['portal_employee_id' => $employee->id]);
         }
 
-        if ($user->role === 'hr_manager') {
+        if (in_array($user->role, ['super_admin', 'admin', 'owner', 'hr_manager'], true)) {
+            if ($user->role === 'super_admin') {
+                return redirect()->route('dashboard.superadmin');
+            }
             return redirect()->route('dashboard.hr');
         } elseif ($user->role === 'department_manager') {
             return redirect()->route('dashboard.manager');

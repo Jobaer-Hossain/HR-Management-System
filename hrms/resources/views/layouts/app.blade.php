@@ -60,6 +60,10 @@
             max-width: calc(100vw - 260px);
         }
 
+        .guest-shell .sidebar { display: none; }
+        .guest-shell .main-content { margin-left: 0; max-width: 100vw; padding: 0; }
+        .guest-shell .role-context-strip { display: none !important; }
+
         @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(-100%);
@@ -70,9 +74,19 @@
             }
             .main-content {
                 margin-left: 0;
-                padding: 20px;
+                padding: 20px 16px;
                 max-width: 100vw;
             }
+        }
+
+        @media (max-width: 576px) {
+            .main-content { padding: 14px 12px; }
+            .main-content > .d-flex { align-items: stretch !important; }
+            .main-content .btn { max-width: 100%; }
+            .top-navbar, .page-heading { margin-bottom: 18px !important; }
+            .table-responsive { border-radius: 12px; }
+            .card, .rounded-4 { border-radius: 14px !important; }
+            .sidebar { width: min(86vw, 300px); padding: 18px 14px; }
         }
 
         /* Sidebar Branding */
@@ -238,6 +252,91 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.03);
         }
 
+        /* Shared workspace actions: consistent across admin and employee portals. */
+        .workspace-actions {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 16px;
+            margin-bottom: 24px;
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 14px;
+            box-shadow: 0 1px 3px rgba(15, 23, 42, .03);
+        }
+        .workspace-actions-label {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #0f172a;
+            font-size: .82rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .workspace-actions-label i {
+            color: #2563eb;
+            font-size: 1rem;
+        }
+        .workspace-action-list {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .workspace-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            min-height: 34px;
+            padding: 7px 11px;
+            border: 1px solid #dbe4ef;
+            border-radius: 9px;
+            background: #fff;
+            color: #334155;
+            font-size: .76rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: border-color .15s ease, background .15s ease, color .15s ease;
+        }
+        .workspace-action:hover {
+            color: #1d4ed8;
+            background: #eff6ff;
+            border-color: #bfdbfe;
+        }
+        .workspace-action.primary {
+            color: #fff;
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+        .workspace-action.primary:hover {
+            color: #fff;
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        .workspace-action i { font-size: .9rem; }
+
+        @media (max-width: 767.98px) {
+            .workspace-actions {
+                align-items: stretch;
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+                margin-bottom: 18px;
+            }
+            .workspace-action-list {
+                justify-content: stretch;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+            .workspace-action {
+                justify-content: center;
+                padding-inline: 8px;
+                white-space: nowrap;
+            }
+        }
+
         /* Avatar group & Badges */
         .avatar-sm {
             width: 36px;
@@ -300,7 +399,7 @@
     </style>
     @stack('styles')
 </head>
-<body>
+<body class="{{ auth()->check() ? 'authenticated-shell' : 'guest-shell' }}">
     <div class="app-wrapper">
         <!-- Sidebar matching Screenshot 1 (EasyTeam) -->
         <aside class="sidebar" id="sidebar">
@@ -318,8 +417,9 @@
 
             <!-- Tenant & Role Selection -->
             @php
-                $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+                $currentRole = auth()->check() ? auth()->user()->role : 'hr_manager';
                 $roleMeta = [
+                    'super_admin' => ['title' => 'Super Admin', 'icon' => 'bi-shield-lock-fill', 'color' => '#111827', 'name' => 'Super Admin', 'sub' => 'Platform Owner', 'avatar' => ''],
                     'hr_manager' => ['title' => 'HR Admin / Exec', 'icon' => 'bi-shield-check', 'color' => '#2563eb', 'name' => 'William Dolaz', 'sub' => 'HR Manager', 'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces'],
                     'department_manager' => ['title' => 'Department Manager', 'icon' => 'bi-diagram-3-fill', 'color' => '#0891b2', 'name' => 'Robert Fox', 'sub' => 'Engineering Lead', 'avatar' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces'],
                     'finance' => ['title' => 'Finance & Payroll', 'icon' => 'bi-cash-coin', 'color' => '#059669', 'name' => 'Jacob Jones', 'sub' => 'Payroll Officer', 'avatar' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces'],
@@ -328,7 +428,8 @@
                 $activeRoleData = $roleMeta[$currentRole] ?? $roleMeta['hr_manager'];
             @endphp
 
-            <!-- Role Switcher Dropdown in Sidebar -->
+            @if($currentRole === 'super_admin')
+            <!-- Super Admin role switcher -->
             <div class="dropdown mb-2">
                 <button class="btn btn-sm w-100 text-start d-flex align-items-center justify-content-between border shadow-sm" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.8rem; font-weight: 700; background: #ffffff; border-color: #e2e8f0 !important;">
                     <span class="d-flex align-items-center gap-2 text-truncate">
@@ -394,7 +495,7 @@
                 </ul>
             </div>
 
-            <!-- Tenant Selection Pill -->
+            <!-- Super Admin tenant selector -->
             <div class="dropdown mb-3">
                 <button class="btn btn-light btn-sm w-100 text-start d-flex align-items-center justify-content-between border" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.8rem; font-weight: 600;">
                     <span class="d-flex align-items-center gap-2 text-truncate">
@@ -426,7 +527,7 @@
                 </ul>
             </div>
 
-            <!-- Dedicated Quick Login Option in Sidebar -->
+            <!-- Super Admin quick-login shortcut -->
             <div class="mb-3">
                 <a href="{{ route('login') }}" class="btn btn-primary btn-sm w-100 d-flex align-items-center justify-content-between py-2 px-3 fw-bold shadow-sm {{ request()->routeIs('login') ? 'ring-2 ring-primary' : '' }}" style="border-radius: 10px; font-size: 0.82rem; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none;">
                     <div class="d-flex align-items-center gap-2">
@@ -436,6 +537,7 @@
                     <span class="badge bg-white text-primary" style="font-size: 0.68rem; font-weight: 700;">19 Staff</span>
                 </a>
             </div>
+            @endif
 
             <!-- Role-Specific Navigation Links -->
             @if($currentRole === 'department_manager')
@@ -504,10 +606,6 @@
                     <i class="bi bi-shield-check text-success"></i>
                     <span>Face Enrollment</span>
                 </a>
-                <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
-                    <i class="bi bi-camera-video"></i>
-                    <span>Live Face Scanner</span>
-                </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
                     <i class="bi bi-person-check"></i>
                     <span>Self Check In/Out</span>
@@ -573,6 +671,12 @@
             @endif
 
             <div class="nav-section-title">OTHER</div>
+            @if(auth()->user()?->hasPermission('permissions.manage'))
+                <a href="{{ route('permissions.index') }}" class="nav-link-custom {{ request()->routeIs('permissions.*') ? 'active' : '' }}">
+                    <i class="bi bi-person-lock"></i>
+                    <span>Role Permissions</span>
+                </a>
+            @endif
             <a href="#" class="nav-link-custom d-flex justify-content-between align-items-center">
                 <div class="d-flex align-items-center gap-3">
                     <i class="bi bi-bell"></i>
@@ -612,7 +716,9 @@
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 0.85rem;">
                     <li><h6 class="dropdown-header">Logged In As {{ $activeRoleData['name'] }}</h6></li>
-                    <li><a class="dropdown-item fw-bold text-primary" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i> Login Option (All 19 Accounts)</a></li>
+                    @if($currentRole === 'super_admin')
+                        <li><a class="dropdown-item fw-bold text-primary" href="{{ route('login') }}"><i class="bi bi-box-arrow-in-right me-2"></i> Login Option (All Accounts)</a></li>
+                    @endif
                     <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="bi bi-person me-2"></i> Role Profile</a></li>
                     <li><a class="dropdown-item" href="{{ route('about') }}"><i class="bi bi-sliders me-2"></i> System Settings</a></li>
                     <li><hr class="dropdown-divider"></li>
@@ -629,7 +735,7 @@
         <!-- Main Content Area -->
         <main class="main-content">
             <!-- Top Role Context Strip (SRS Section 6: Role Based Access & Testing Bar) -->
-            <div class="d-flex align-items-center justify-content-between p-2 px-3 mb-4 rounded-3 bg-white border shadow-sm flex-wrap gap-2">
+            <div class="role-context-strip d-flex align-items-center justify-content-between p-2 px-3 mb-4 rounded-3 bg-white border shadow-sm flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
                     <button class="btn btn-light btn-sm d-lg-none border py-1 px-2" id="mobileNavToggleBtn" type="button" title="Toggle Navigation Menu">
                         <i class="bi bi-list fs-5"></i>
@@ -642,8 +748,9 @@
                 </div>
 
                 <div class="d-flex align-items-center gap-2 flex-wrap">
-                    <!-- 1-Click Role Switcher Pills -->
-                    <div class="d-flex align-items-center gap-1 flex-wrap">
+                    <!-- 1-Click Role Switcher Pills (administrators only) -->
+                    @if($currentRole === 'super_admin')
+                    <div class="d-flex align-items-center gap-1 flex-wrap role-switcher">
                         <span class="text-muted small fw-semibold me-1 d-none d-lg-inline" style="font-size: 0.75rem;">Switch View:</span>
                         
                         <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
@@ -678,12 +785,25 @@
                             </button>
                         </form>
                     </div>
+                    @endif
 
-                    <!-- Prominent Login Option Button -->
+                    @if($currentRole === 'super_admin')
+                    <!-- Super Admin-only login shortcut -->
                     <a href="{{ route('login') }}" class="btn btn-primary btn-sm px-3 py-1 fw-bold d-inline-flex align-items-center gap-1 shadow-sm" style="border-radius: 8px; font-size: 0.78rem; background: linear-gradient(135deg, #2563eb, #1e40af); border: none;" title="Go to Login Page with All Accounts">
                         <i class="bi bi-person-lock fs-6"></i>
                         <span>Login Option</span>
                     </a>
+                    @endif
+
+                    @auth
+                    <form action="{{ route('logout') }}" method="POST" class="d-inline">
+                        @csrf
+                        <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-1 fw-bold d-inline-flex align-items-center gap-1" style="border-radius: 8px; font-size: 0.78rem;" title="Sign out">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                    </form>
+                    @endauth
                 </div>
             </div>
             <!-- Toast / Alerts -->

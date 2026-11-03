@@ -157,7 +157,7 @@
 
                             <!-- Biometrics (Face ID & Database Storage Option) -->
                             <td id="biometric-cell-{{ $employee->id }}">
-                                @if($employee->face_descriptor)
+                                @if($employee->hasReliableFaceBiometric())
                                     <div class="d-flex align-items-center gap-1 flex-wrap">
                                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.74rem;">
                                             <i class="bi bi-shield-check me-1"></i> Enrolled
@@ -282,10 +282,10 @@
                 </div>
 
                 <!-- Camera Viewport with Reticle -->
-                <div class="modal-camera-wrapper position-relative mx-auto mb-3" style="width: 280px; height: 280px; border-radius: 20px; overflow: hidden; background: #0f172a; border: 3px solid #2563eb; box-shadow: 0 10px 25px -5px rgba(37,99,235,0.4);">
-                    <video id="modalFaceVideo" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <div class="modal-camera-wrapper position-relative mx-auto mb-3">
+                    <video id="modalFaceVideo" autoplay playsinline muted></video>
                     
-                    <div id="modalCamPlaceholder" class="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white p-3" style="background: rgba(15, 23, 42, 0.95);">
+                    <div id="modalCamPlaceholder" class="modal-camera-placeholder position-absolute top-0 start-0 w-100 h-100 d-flex flex-column align-items-center justify-content-center text-white p-3">
                         <i class="bi bi-person-bounding-box fs-1 mb-2 text-primary"></i>
                         <p class="small fw-semibold mb-0">Initializing Camera...</p>
                         <small class="text-white-50" style="font-size: 0.7rem;">Align face inside the frame</small>
@@ -315,12 +315,6 @@
                     </button>
                 </div>
 
-                <div class="pt-2 border-top">
-                    <label for="modalFaceFileInput" class="form-label text-muted small mb-1" style="font-size: 0.75rem;">
-                        <i class="bi bi-upload me-1"></i> Or upload facial photo file directly:
-                    </label>
-                    <input type="file" id="modalFaceFileInput" accept="image/*" class="form-control form-control-sm" style="border-radius: 8px; font-size: 0.8rem;">
-                </div>
             </div>
 
             <div class="modal-footer border-top bg-light p-3 px-4 d-flex justify-content-between">
@@ -336,6 +330,41 @@
 
 @push('styles')
 <style>
+    .modal-camera-wrapper {
+        width: min(100%, 360px);
+        aspect-ratio: 1 / 1;
+        border-radius: 22px;
+        overflow: hidden;
+        position: relative;
+        background: #0f172a;
+        border: 3px solid #2563eb;
+        box-shadow: 0 10px 25px -5px rgba(37, 99, 235, .4);
+    }
+    .modal-camera-wrapper video {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        background: #111827;
+    }
+    .modal-camera-placeholder {
+        z-index: 2;
+        text-align: center;
+        background: linear-gradient(145deg, rgba(15, 23, 42, .98), rgba(30, 41, 59, .96));
+    }
+    .modal-camera-placeholder .camera-offline-icon {
+        color: #fbbf24;
+        font-size: 2.4rem;
+        margin-bottom: .55rem;
+    }
+    @media (max-width: 575.98px) {
+        .modal-camera-wrapper {
+            width: min(100%, 300px);
+            border-radius: 18px;
+        }
+    }
+
     /* Modal Camera HUD */
     .modal-hud-reticle {
         position: absolute;
@@ -429,9 +458,6 @@ let employeeFaceModalInstance = null;
 
 function openFaceEnrollModal(empId, empName, empCode, empAvatar) {
     currentEnrollEmpId = empId;
-    uploadedFileBase64 = null;
-    const fin = document.getElementById('modalFaceFileInput');
-    if (fin) fin.value = '';
     document.getElementById('modalEmpName').innerText = empName;
     document.getElementById('modalEmpCode').innerText = empCode;
     document.getElementById('modalEmpAvatar').src = empAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
@@ -449,23 +475,82 @@ async function startModalCamera() {
     modalVideo = document.getElementById('modalFaceVideo');
     modalPlaceholder = document.getElementById('modalCamPlaceholder');
 
+    const showCameraError = (message) => {
+        modalPlaceholder.style.display = 'flex';
+        modalPlaceholder.innerHTML = `
+            <i class="bi bi-camera-video-off camera-offline-icon"></i>
+            <p class="small fw-semibold mb-1">Camera unavailable</p>
+            <small class="text-white-50" style="font-size: 0.7rem; max-width: 230px;">${message}</small>
+            <button type="button" class="btn btn-sm btn-light mt-3 px-3" onclick="startModalCamera()">
+                <i class="bi bi-arrow-repeat me-1"></i> Try camera again
+            </button>
+        `;
+    };
+
+    if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        showCameraError('Allow camera access on localhost/HTTPS, then click Reset Camera.');
+        return;
+    }
+
     try {
         if (modalStream) {
             modalStream.getTracks().forEach(t => t.stop());
+            modalStream = null;
         }
-        modalStream = await navigator.mediaDevices.getUserMedia({
-            video: { width: 480, height: 480, facingMode: 'user' }
-        });
+        modalVideo.pause();
+        modalVideo.srcObject = null;
+
+        // Start with a practical front-camera profile, then fall back to the
+        // browser default for older phones, laptops, and external webcams.
+        try {
+            modalStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    width: { ideal: 640 },
+                    height: { ideal: 640 },
+                    facingMode: { ideal: 'user' }
+                }
+            });
+        } catch (firstError) {
+            modalStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+        }
+
         modalVideo.srcObject = modalStream;
-        modalPlaceholder.style.display = 'none';
-    } catch (err) {
-        console.warn('Camera inaccessible or permission denied, using simulated capture fallback:', err);
+        modalVideo.muted = true;
         modalPlaceholder.style.display = 'flex';
         modalPlaceholder.innerHTML = `
-            <i class="bi bi-camera-video-off fs-1 mb-2 text-warning"></i>
-            <p class="small fw-semibold mb-0">Hardware Camera Offline</p>
-            <small class="text-white-50" style="font-size: 0.7rem;">Click below to capture & store face embedding</small>
+            <span class="spinner-border text-info mb-2" role="status" aria-hidden="true"></span>
+            <p class="small fw-semibold mb-0">Starting camera…</p>
+            <small class="text-white-50" style="font-size: 0.7rem;">Position your face inside the frame</small>
         `;
+
+        // Some Chromium/mobile builds do not reliably emit loadedmetadata for
+        // MediaStreams. Start playback first, then poll for actual dimensions.
+        await modalVideo.play();
+        await new Promise((resolve, reject) => {
+            const startedAt = Date.now();
+            const checkVideoFrame = () => {
+                if (modalVideo.videoWidth > 0 && modalVideo.videoHeight > 0 && modalVideo.readyState >= 2) {
+                    resolve();
+                    return;
+                }
+                if (Date.now() - startedAt > 8000) {
+                    reject(new Error('Camera started but did not provide a visible video frame.'));
+                    return;
+                }
+                window.setTimeout(checkVideoFrame, 120);
+            };
+            checkVideoFrame();
+        });
+        modalPlaceholder.style.display = 'none';
+    } catch (err) {
+        console.warn('Camera inaccessible or permission denied:', err);
+        const reason = err?.name === 'NotAllowedError'
+            ? 'Camera permission was denied. Allow camera access in the browser address bar and try again.'
+            : err?.name === 'NotReadableError'
+                ? 'The camera may be in use by another app. Close it and click Reset Camera.'
+                : 'Check the camera connection and click Reset Camera to try again.';
+        showCameraError(reason);
     }
 }
 
@@ -495,28 +580,6 @@ document.addEventListener('DOMContentLoaded', function() {
         restartBtn.addEventListener('click', startModalCamera);
     }
 
-    let uploadedFileBase64 = null;
-    const fileInput = document.getElementById('modalFaceFileInput');
-    if (fileInput) {
-        fileInput.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    uploadedFileBase64 = evt.target.result;
-                    modalPlaceholder.style.display = 'flex';
-                    modalPlaceholder.innerHTML = `
-                        <img src="${uploadedFileBase64}" style="width: 100%; height: 100%; object-fit: cover;">
-                    `;
-                    modalAlert.style.display = 'block';
-                    modalAlert.className = 'alert alert-info py-2 small mb-3 text-start';
-                    modalAlert.innerHTML = `<i class="bi bi-image me-1"></i> Photo file loaded. Click "Capture & Store in DB" to save.`;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-
     modalCaptureBtn.addEventListener('click', async function() {
         if (!currentEnrollEmpId) return;
 
@@ -524,23 +587,24 @@ document.addEventListener('DOMContentLoaded', function() {
         modalCaptureBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Extracting & Storing...`;
         modalAlert.style.display = 'block';
         modalAlert.className = 'alert alert-info py-2 small mb-3 text-start';
-        modalAlert.innerHTML = `<i class="bi bi-cpu me-1"></i> Capturing facial biometrics and saving to database...`;
+        modalAlert.innerHTML = `<i class="bi bi-cpu me-1"></i> Capturing three live frames for ArcFace enrollment...`;
 
-        // 1. Snapshot capture
-        let snapshotData = null;
+        // 1. Capture multiple live frames. A single uploaded photo is not accepted for secure enrollment.
+        const faceFrames = [];
         if (modalStream && modalVideo && modalVideo.videoWidth > 0) {
             modalCanvas.width = modalVideo.videoWidth;
             modalCanvas.height = modalVideo.videoHeight;
             const ctx = modalCanvas.getContext('2d');
-            ctx.drawImage(modalVideo, 0, 0);
-            snapshotData = modalCanvas.toDataURL('image/jpeg', 0.85);
-        } else if (uploadedFileBase64) {
-            snapshotData = uploadedFileBase64;
+            for (let frame = 0; frame < 3; frame++) {
+                ctx.drawImage(modalVideo, 0, 0);
+                faceFrames.push(modalCanvas.toDataURL('image/jpeg', 0.85));
+                await new Promise(resolve => setTimeout(resolve, 350));
+            }
         }
 
-        if (!snapshotData) {
+        if (faceFrames.length < 3) {
             modalAlert.className = 'alert alert-warning py-2 small mb-3 text-start';
-            modalAlert.innerHTML = `<i class="bi bi-camera-video-off me-1"></i> Please start your camera or choose a photo file before enrolling.`;
+            modalAlert.innerHTML = `<i class="bi bi-camera-video-off me-1"></i> Start the camera and capture three live frames. A single uploaded image is not accepted for secure enrollment.`;
             modalCaptureBtn.disabled = false;
             modalCaptureBtn.innerHTML = `<i class="bi bi-camera me-1"></i> Capture & Store Biometrics in DB`;
             return;
@@ -555,7 +619,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     employee_id: currentEnrollEmpId,
-                    face_snapshot: snapshotData
+                    face_frames: faceFrames
                 })
             });
 
@@ -572,7 +636,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.74rem;">
                                 <i class="bi bi-shield-check me-1"></i> Enrolled
                             </span>
-                            <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fw-semibold d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; border-radius: 6px; height: 26px;" onclick="openFaceEnrollModal(${currentEnrollEmpId}, '${document.getElementById('modalEmpName').innerText}', '${document.getElementById('modalEmpCode').innerText}', '${snapshotData || document.getElementById('modalEmpAvatar').src}')">
+                    <button type="button" class="btn btn-sm btn-outline-primary py-0 px-2 fw-semibold d-inline-flex align-items-center gap-1" style="font-size: 0.72rem; border-radius: 6px; height: 26px;" onclick="openFaceEnrollModal(${currentEnrollEmpId}, '${document.getElementById('modalEmpName').innerText}', '${document.getElementById('modalEmpCode').innerText}', '${faceFrames[0] || document.getElementById('modalEmpAvatar').src}')">
                                 <i class="bi bi-camera"></i> Update
                             </button>
                         </div>
@@ -582,9 +646,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     `;
                 }
 
-                if (snapshotData) {
+                if (faceFrames[0]) {
                     const avatarImg = document.getElementById('emp-avatar-' + currentEnrollEmpId);
-                    if (avatarImg) avatarImg.src = snapshotData;
+                    if (avatarImg) avatarImg.src = faceFrames[0];
                 }
 
                 setTimeout(() => {

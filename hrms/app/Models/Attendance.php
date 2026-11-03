@@ -22,6 +22,9 @@ class Attendance extends Model
         'status',
         'location_note',
         'source',
+        'biometric_similarity',
+        'biometric_engine',
+        'biometric_frames',
     ];
 
     public function employee()

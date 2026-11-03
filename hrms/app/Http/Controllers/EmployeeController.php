@@ -12,8 +12,8 @@ class EmployeeController extends Controller
 {
     public function index(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $currentRole = auth()->user()->role;
 
         // Employee role doesn't manage directory - redirect to personal portal
         if ($currentRole === 'employee') {
@@ -25,7 +25,7 @@ class EmployeeController extends Controller
 
         // Department Manager only manages their department members
         if ($currentRole === 'department_manager') {
-            $managerEmp = Employee::find(session('portal_employee_id', 2));
+            $managerEmp = Employee::where('tenant_id', $tenantId)->find(session('portal_employee_id'));
             if ($managerEmp && $managerEmp->department_id) {
                 $query->where('department_id', $managerEmp->department_id);
             }
@@ -70,7 +70,7 @@ class EmployeeController extends Controller
 
     public function create()
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
         $departments = Department::where('tenant_id', $tenantId)->get();
         $designations = Designation::where('tenant_id', $tenantId)->get();
 
@@ -79,7 +79,7 @@ class EmployeeController extends Controller
 
     public function store(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -123,8 +123,8 @@ class EmployeeController extends Controller
 
     public function edit($id)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $employee = Employee::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $employee = Employee::where('tenant_id', $tenantId)->findOrFail($id);
         $departments = Department::where('tenant_id', $tenantId)->get();
         $designations = Designation::where('tenant_id', $tenantId)->get();
 
@@ -133,7 +133,8 @@ class EmployeeController extends Controller
 
     public function update(Request $request, $id)
     {
-        $employee = Employee::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $employee = Employee::where('tenant_id', $tenantId)->findOrFail($id);
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
@@ -172,7 +173,8 @@ class EmployeeController extends Controller
 
     public function destroy($id)
     {
-        $employee = Employee::findOrFail($id);
+        $tenantId = auth()->user()->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $employee = Employee::where('tenant_id', $tenantId)->findOrFail($id);
         $employee->delete();
 
         return redirect()->route('employees.index')->with('success', 'Employee deleted successfully!');

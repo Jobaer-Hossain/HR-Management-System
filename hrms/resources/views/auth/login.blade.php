@@ -56,6 +56,12 @@
                         <div class="mb-4">
                             <label class="form-label fw-semibold text-secondary small mb-2">⚡ 1-Click Role Login Demo</label>
                             <div class="row g-2">
+                                <div class="col-6 col-sm">
+                                    <button type="button" class="btn btn-outline-dark w-100 py-2 d-flex flex-column align-items-center justify-content-center gap-1 quick-login-btn" onclick="quickFill('superadmin@hrms.com', 'password123')" style="border-radius: 12px; font-size: 0.76rem;">
+                                        <i class="bi bi-shield-lock-fill fs-5"></i>
+                                        <span class="fw-bold">Super Admin</span>
+                                    </button>
+                                </div>
                                 <div class="col-6 col-sm-3">
                                     <button type="button" class="btn btn-outline-primary w-100 py-2 d-flex flex-column align-items-center justify-content-center gap-1 quick-login-btn" onclick="quickFill('admin@hrms.com', 'password123')" style="border-radius: 12px; font-size: 0.76rem;">
                                         <i class="bi bi-person-fill-gear fs-5"></i>
@@ -165,6 +171,7 @@
                                         <tbody>
                                             @php
                                                 $demoStaff = [
+                                                    ['name' => 'Super Admin', 'email' => 'superadmin@hrms.com', 'role' => 'Super Admin', 'badge' => 'dark'],
                                                     ['name' => 'William Dolaz', 'email' => 'admin@hrms.com', 'role' => 'HR Manager', 'badge' => 'primary'],
                                                     ['name' => 'Robert Fox', 'email' => 'manager@hrms.com', 'role' => 'Dept Manager', 'badge' => 'info'],
                                                     ['name' => 'Jacob Jones', 'email' => 'finance@hrms.com', 'role' => 'Finance', 'badge' => 'success'],

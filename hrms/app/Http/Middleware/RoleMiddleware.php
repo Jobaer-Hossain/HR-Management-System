@@ -17,10 +17,14 @@ class RoleMiddleware
      */
     public function handle(Request $request, Closure $next, ...$roles)
     {
-        $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+        if (!auth()->check()) {
+            return redirect()->route('login');
+        }
+
+        $currentRole = auth()->user()->role;
 
         // HR Manager / Admin has full administrative access to all modules
-        if ($currentRole === 'hr_manager' || $currentRole === 'admin' || $currentRole === 'super_admin') {
+        if ($currentRole === 'hr_manager' || $currentRole === 'admin' || $currentRole === 'super_admin' || $currentRole === 'owner') {
             return $next($request);
         }
 

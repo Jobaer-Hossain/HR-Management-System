@@ -3,6 +3,7 @@
 /public/storage
 /storage/*.key
 /vendor
+/.face-venv
 .env
 .env.backup
 .env.production
@@ -24,3 +25,10 @@ yarn-error.log
 !/storage/framework/views/.gitignore
 /storage/logs/*
 !/storage/logs/.gitignore
+/storage/app/face-models/*
+!/storage/app/face-models/.gitignore
+/storage/app/public/*
+!/storage/app/public/.gitignore
+/output
+__pycache__/
+*.pyc

@@ -1,9 +1,9 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="attendance-punch-page">
+<div class="attendance-punch-page mobile-attendance-shell">
     <!-- Header with Breadcrumbs & Profile Switcher -->
-    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
+    <div class="attendance-page-header d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
         <div>
             <div class="d-flex align-items-center gap-2">
                 <h2 class="fw-bold mb-0 text-slate-900" style="font-size: 1.65rem; letter-spacing: -0.5px;">Check In / Check Out</h2>
@@ -14,12 +14,12 @@
             <p class="text-muted mb-0" style="font-size: 0.88rem;">Real-time biometric attendance terminal and self-service punch</p>
         </div>
 
-        <div class="d-flex align-items-center gap-2 flex-wrap">
+        <div class="mobile-page-actions d-flex align-items-center gap-2 flex-wrap">
             <!-- Profile Switcher Dropdown -->
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle bg-white px-3 py-2 fw-semibold" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.85rem;">
                     <i class="bi bi-person-circle me-1"></i> {{ $employee->name }}
-                    @if($employee->face_descriptor)
+                    @if($employee->hasReliableFaceBiometric())
                         <span class="badge bg-success-subtle text-success ms-1" style="font-size: 0.7rem;">🟢 Enrolled</span>
                     @else
                         <span class="badge bg-warning-subtle text-warning ms-1" style="font-size: 0.7rem;">⚠️ Face Pending</span>
@@ -34,7 +34,7 @@
                                     <img src="{{ $st->face_snapshot ?? $st->avatar }}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover;">
                                     <span>{{ $st->name }} ({{ $st->employee_code ?? 'EMP-'.$st->id }})</span>
                                 </div>
-                                @if($st->face_descriptor)
+                                @if($st->hasReliableFaceBiometric())
                                     <span class="badge bg-success-subtle text-success py-0 px-1" style="font-size: 0.65rem;">Enrolled</span>
                                 @else
                                     <span class="badge bg-warning-subtle text-warning py-0 px-1" style="font-size: 0.65rem;">Pending</span>
@@ -61,12 +61,24 @@
     <div class="row g-4 justify-content-center">
         <!-- Punch Clock & Scanner Card -->
         <div class="col-12 col-xl-8 col-lg-9">
-            <div class="card card-custom p-4 p-md-5 text-center position-relative overflow-hidden">
+            <div class="card card-custom mobile-punch-card p-4 p-md-5 text-center position-relative overflow-hidden">
+                <div class="mobile-terminal-strip d-flex align-items-center justify-content-between gap-3 mb-4 pb-3 border-bottom">
+                    <div class="d-flex align-items-center gap-2 text-start">
+                        <span class="mobile-terminal-dot"></span>
+                        <div>
+                            <div class="fw-bold text-dark mobile-terminal-title">Self-service biometric terminal</div>
+                            <div class="text-muted mobile-terminal-subtitle">Three live frames are verified securely on the server</div>
+                        </div>
+                    </div>
+                    <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2 py-1 flex-shrink-0">
+                        <i class="bi bi-shield-check me-1"></i> Ready
+                    </span>
+                </div>
                 <!-- User Greeting Header -->
                 <div class="d-flex flex-column align-items-center mb-3">
                     <div class="position-relative d-inline-block mb-3">
                         <img src="{{ $employee->face_snapshot ?? $employee->avatar ?? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=140' }}" class="user-punch-avatar" id="punchUserAvatar" alt="{{ $employee->name }}">
-                        @if($employee->face_descriptor)
+                        @if($employee->hasReliableFaceBiometric())
                             <span class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle d-flex align-items-center justify-content-center border border-2 border-white" style="width: 26px; height: 26px; font-size: 0.8rem;" title="Enrolled in Biometric Database">
                                 <i class="bi bi-shield-check"></i>
                             </span>
@@ -87,7 +99,7 @@
                         </span>
                     </div>
 
-                    @if(!$employee->face_descriptor)
+                    @if(!$employee->hasReliableFaceBiometric())
                         <div class="alert alert-warning py-2 px-3 mt-3 mb-0 text-start w-100" style="border-radius: 12px; font-size: 0.82rem; border-left: 4px solid #f59e0b; background: #fffbeb;">
                             <div class="d-flex align-items-center gap-2 mb-1">
                                 <i class="bi bi-shield-exclamation text-warning fs-5"></i>
@@ -189,7 +201,7 @@
                 </div>
 
                 <!-- 3 Stats Cards (Numla Prototype 2: Check In, Check Out, Hours Worked) -->
-                <div class="row g-3 justify-content-center pt-2">
+                <div class="row g-3 justify-content-center pt-2 mobile-stat-grid">
                     <!-- Check In Box -->
                     <div class="col-12 col-sm-4">
                         <div class="stat-punch-card">
@@ -301,7 +313,50 @@
 
 @push('styles')
 <style>
-    /* Clean Mobile Responsive Punch Page */
+    /* Mobile self-service terminal: share the same visual language as the gate scanner. */
+    .mobile-attendance-shell {
+        --attendance-ink: #0f172a;
+        --attendance-muted: #64748b;
+        --attendance-line: #e2e8f0;
+        --attendance-blue: #2563eb;
+    }
+    .mobile-punch-card,
+    .mobile-attendance-shell .card-custom {
+        border: 1px solid var(--attendance-line);
+        border-radius: 18px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+    }
+    .mobile-terminal-strip {
+        text-align: left;
+    }
+    .mobile-terminal-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #22c55e;
+        box-shadow: 0 0 0 5px #dcfce7;
+        flex: 0 0 auto;
+    }
+    .mobile-terminal-title {
+        font-size: .9rem;
+        color: var(--attendance-ink);
+    }
+    .mobile-terminal-subtitle {
+        font-size: .75rem;
+        line-height: 1.35;
+    }
+    .mobile-page-actions .btn,
+    .mobile-attendance-shell .dropdown > .btn {
+        min-height: 40px;
+        border-color: #cbd5e1;
+    }
+    .mobile-attendance-shell .text-slate-900,
+    .mobile-attendance-shell h2,
+    .mobile-attendance-shell h3,
+    .mobile-attendance-shell h6 {
+        color: var(--attendance-ink) !important;
+    }
+
     .user-punch-avatar {
         width: 88px;
         height: 88px;
@@ -535,6 +590,137 @@
         from { opacity: 0; transform: translateY(8px); }
         to { opacity: 1; transform: translateY(0); }
     }
+
+    @media (max-width: 991.98px) {
+        .attendance-page-header {
+            align-items: flex-start !important;
+        }
+        .mobile-page-actions {
+            width: 100%;
+        }
+        .mobile-page-actions .dropdown {
+            flex: 1 1 100%;
+        }
+        .mobile-page-actions .dropdown > .btn {
+            width: 100%;
+            justify-content: space-between;
+        }
+        .mobile-page-actions > a {
+            flex: 1 1 calc(33.333% - .5rem);
+            white-space: nowrap;
+        }
+    }
+
+    @media (max-width: 576px) {
+        .mobile-attendance-shell {
+            margin-inline: -0.35rem;
+        }
+        .attendance-page-header {
+            margin-bottom: 1rem !important;
+        }
+        .attendance-page-header h2 {
+            font-size: 1.3rem !important;
+        }
+        .attendance-page-header p {
+            font-size: .78rem !important;
+            margin-top: .2rem;
+        }
+        .attendance-page-header .badge {
+            font-size: .67rem !important;
+        }
+        .mobile-page-actions {
+            gap: .45rem !important;
+        }
+        .mobile-page-actions > a {
+            flex: 1 1 calc(50% - .25rem);
+            padding-inline: .65rem !important;
+            font-size: .74rem !important;
+        }
+        .mobile-page-actions > a:last-child {
+            flex-basis: 100%;
+        }
+        .mobile-punch-card {
+            padding: 1rem !important;
+            border-radius: 16px;
+        }
+        .mobile-terminal-strip {
+            margin-bottom: 1rem !important;
+            padding-bottom: .75rem !important;
+        }
+        .mobile-terminal-title {
+            font-size: .8rem;
+        }
+        .mobile-terminal-subtitle {
+            font-size: .68rem;
+        }
+        .mobile-terminal-strip .badge {
+            font-size: .65rem;
+        }
+        .live-camera-feed-box {
+            width: min(100%, 340px);
+            height: auto;
+            aspect-ratio: 4 / 3;
+            border-radius: 16px;
+        }
+        .punch-circular-btn {
+            width: 148px;
+            height: 148px;
+        }
+        .punch-inner-disc {
+            width: 128px;
+            height: 128px;
+        }
+        .pulse-ring.ring-1 {
+            width: 142px;
+            height: 142px;
+        }
+        .pulse-ring.ring-2 {
+            width: 162px;
+            height: 162px;
+        }
+        .punch-icon-glow {
+            font-size: 2.8rem;
+        }
+        .punch-btn-text {
+            font-size: .82rem;
+        }
+        .distance-geofence-pill {
+            max-width: 100%;
+            padding: 6px 10px;
+            font-size: .72rem;
+        }
+        .mobile-stat-grid {
+            --bs-gutter-x: .5rem;
+            --bs-gutter-y: .5rem;
+        }
+        .mobile-stat-grid > [class*="col-"] {
+            flex: 0 0 33.333333%;
+            max-width: 33.333333%;
+        }
+        .stat-punch-card {
+            padding: 10px 5px;
+            border-radius: 12px;
+        }
+        .stat-punch-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 9px;
+            font-size: .95rem;
+            margin-bottom: 5px;
+        }
+        .stat-punch-val {
+            font-size: .76rem;
+        }
+        .stat-punch-lbl {
+            font-size: .58rem;
+            letter-spacing: 0;
+            line-height: 1.25;
+        }
+        .verified-card-banner {
+            padding: 12px;
+            border-radius: 14px;
+        }
+    }
 </style>
 @endpush
 
@@ -609,7 +795,7 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleCamBtn.addEventListener('click', toggleCameraStream);
     }
 
-    const isEmployeeEnrolled = {{ $employee->face_descriptor ? 'true' : 'false' }};
+    const isEmployeeEnrolled = {{ $employee->hasReliableFaceBiometric() ? 'true' : 'false' }};
 
     // Trigger Punch with Face Recognition Verification
     async function executeFaceAttendancePunch() {
@@ -625,7 +811,7 @@ document.addEventListener('DOMContentLoaded', function() {
         cameraPrompt.innerText = 'Detecting face in frame...';
         punchText.innerText = 'Verifying...';
 
-        let snapshotData = null;
+        const faceFrames = [];
 
         try {
             if (!stream) {
@@ -663,17 +849,27 @@ document.addEventListener('DOMContentLoaded', function() {
 
         cameraPrompt.innerText = 'Verifying identity with database biometrics...';
 
-        // Capture camera frame
+        // Capture three camera frames for server-side recognition and live-capture validation.
         if (video.videoWidth > 0 && canvas) {
             try {
                 canvas.width = 480;
                 canvas.height = 480;
                 const ctx = canvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, 480, 480);
-                snapshotData = canvas.toDataURL('image/jpeg', 0.85);
+                for (let frame = 0; frame < 3; frame++) {
+                    ctx.drawImage(video, 0, 0, 480, 480);
+                    faceFrames.push(canvas.toDataURL('image/jpeg', 0.85));
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                }
             } catch (ce) {
                 console.warn('Snapshot frame capture note:', ce);
             }
+        }
+
+        if (faceFrames.length < 3) {
+            cameraPrompt.innerText = 'Could not capture the required live frames. Please retry.';
+            isScanning = false;
+            punchText.innerText = punchBtn.classList.contains('btn-checked-in') ? 'Check Out' : 'Check In';
+            return;
         }
 
         // Determine intended punch action based on current button state
@@ -692,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     body: JSON.stringify({
                         employee_id: activeEmployeeId,
                         punch_type: targetPunchType,
-                        face_snapshot: snapshotData
+                        face_frames: faceFrames
                     })
                 });
 
@@ -702,7 +898,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update Verified Card Banner
                     const avatarEl = document.getElementById('verifiedEmpAvatar');
                     if (avatarEl) {
-                        avatarEl.src = snapshotData || data.employee.avatar;
+                        avatarEl.src = faceFrames[0] || data.employee.avatar;
                     }
                     document.getElementById('verifiedEmpName').innerText = data.employee.name;
                     document.getElementById('verifiedEmpMeta').innerText = `${data.employee.designation} • ${data.employee.department}`;
@@ -718,8 +914,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Update Top User Header Info
                     document.getElementById('punchGreetingText').innerText = `Welcome Back, ${data.employee.name}!`;
                     const userAvatarEl = document.getElementById('punchUserAvatar');
-                    if (userAvatarEl && snapshotData) {
-                        userAvatarEl.src = snapshotData;
+                    if (userAvatarEl && faceFrames[0]) {
+                        userAvatarEl.src = faceFrames[0];
                     }
                     document.getElementById('punchUserCode').innerText = data.employee.employee_code;
 

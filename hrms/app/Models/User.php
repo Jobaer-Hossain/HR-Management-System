@@ -19,6 +19,7 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'tenant_id',
+        'employee_id',
         'name',
         'email',
         'password',
@@ -64,5 +65,49 @@ class User extends Authenticatable
     public function isEmployee(): bool
     {
         return $this->role === 'employee';
+    }
+
+    public function permissionOverrides()
+    {
+        return $this->hasMany(UserPermission::class);
+    }
+
+    public function rolePermissionOverrides()
+    {
+        return $this->hasMany(RolePermission::class, 'role', 'role');
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
+    }
+
+    public function hasPermission(string $permission): bool
+    {
+        // Protected platform roles cannot be accidentally locked out by an old override.
+        if (in_array($this->role, ['super_admin', 'admin', 'owner'], true)) {
+            return true;
+        }
+
+        $override = $this->permissionOverrides()
+            ->where('permission', $permission)
+            ->value('allowed');
+
+        if ($override !== null) {
+            return (bool) $override;
+        }
+
+        $roleOverride = RolePermission::query()
+            ->where('role', $this->role)
+            ->where('permission', $permission)
+            ->value('allowed');
+
+        if ($roleOverride !== null) {
+            return (bool) $roleOverride;
+        }
+
+        $rolePermissions = config('permissions.roles.' . $this->role, []);
+
+        return in_array('*', $rolePermissions, true) || in_array($permission, $rolePermissions, true);
     }
 }

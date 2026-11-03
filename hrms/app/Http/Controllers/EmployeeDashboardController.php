@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\LeaveApplication;
 use App\Models\LeaveType;
 use App\Models\ShiftSchedule;
+use App\Services\FacialBiometricService;
 use App\Models\PayrollItem;
 use App\Models\Tenant;
 use Illuminate\Http\Request;
@@ -18,26 +19,31 @@ class EmployeeDashboardController extends Controller
      */
     public function index(Request $request)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = auth()->user()?->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        // Active employee context (allow switching active employee profile to preview portal for any staff)
-        $employeeId = $request->get('emp_id', session('portal_employee_id', 1));
-        $employee = Employee::with(['department', 'designation', 'branch'])
-            ->where('tenant_id', $tenant->id)
-            ->find($employeeId);
+        $employeeQuery = Employee::with(['department', 'designation', 'branch'])
+            ->where('tenant_id', $tenant->id);
 
-        if (!$employee) {
-            $employee = Employee::with(['department', 'designation', 'branch'])
-                ->where('tenant_id', $tenant->id)
-                ->first();
+        if (auth()->user()?->isEmployee()) {
+            $employee = $employeeQuery->whereKey(auth()->user()->employee_id)->first()
+                ?? $employeeQuery->where('email', auth()->user()->email)->first();
+        } else {
+            $employeeId = $request->integer('emp_id') ?: session('portal_employee_id');
+            $employee = $employeeId
+                ? (clone $employeeQuery)->find($employeeId)
+                : $employeeQuery->first();
         }
+
+        abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
         if ($employee) {
             session(['portal_employee_id' => $employee->id]);
         }
 
-        $allStaff = Employee::where('tenant_id', $tenant->id)->get();
+        $allStaff = auth()->user()?->isEmployee()
+            ? collect([$employee])
+            : Employee::where('tenant_id', $tenant->id)->get();
 
         // 1. Today's Attendance
         $todayAttendance = Attendance::where('tenant_id', $tenant->id)
@@ -99,56 +105,39 @@ class EmployeeDashboardController extends Controller
     /**
      * Store or update facial biometric vector in the database
      */
-    public function enrollFace(Request $request)
+    public function enrollFace(Request $request, FacialBiometricService $biometrics)
     {
-        $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $tenantId = auth()->user()?->tenant_id ?? session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
 
         $validated = $request->validate([
-            'employee_id' => 'required|exists:employees,id',
-            'face_descriptor' => 'nullable', // Array of floats or extracted via snapshot
-            'face_snapshot' => 'nullable|string', // Base64 snapshot or image URL
+            'employee_id' => 'required|integer|exists:employees,id',
+            'face_frames' => 'required|array|min:3|max:5',
+            'face_frames.*' => 'required|string|max:5000000',
         ]);
 
         $employee = Employee::where('tenant_id', $tenantId)->findOrFail($validated['employee_id']);
 
-        $descriptor = $request->input('face_descriptor');
-        if (is_string($descriptor)) {
-            $descriptor = json_decode($descriptor, true);
+        if (auth()->user()?->isEmployee() && (int) $employee->id !== (int) auth()->user()->employee_id && $employee->email !== auth()->user()->email) {
+            abort(403, 'You can only enroll your own facial profile.');
         }
 
-        // If descriptor not provided, extract authentically from face_snapshot
-        if ((!$descriptor || (count($descriptor) !== 512 && count($descriptor) !== 128)) && !empty($validated['face_snapshot'])) {
-            $tmpFile = tempnam(sys_get_temp_dir(), 'enroll_');
-            file_put_contents($tmpFile, $validated['face_snapshot']);
-            $output = shell_exec("python " . escapeshellarg(base_path('app/Services/face_extractor.py')) . " " . escapeshellarg($tmpFile));
-            @unlink($tmpFile);
-
-            if ($output) {
-                $res = json_decode($output, true);
-                if (!empty($res['success']) && !empty($res['descriptor'])) {
-                    $descriptor = $res['descriptor'];
-                } else {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Enrollment Failed: ' . ($res['error'] ?? 'No clear human face detected in camera capture.')
-                    ], 422);
-                }
-            }
-        }
-
-        if (!$descriptor) {
+        try {
+            $result = $biometrics->extract($validated['face_frames']);
+        } catch (\Throwable $exception) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to extract facial biometric features. Please look directly into the camera.'
+                'message' => 'Enrollment failed: ' . $exception->getMessage(),
             ], 422);
         }
 
-        $employee->face_descriptor = $descriptor;
-        if (!empty($validated['face_snapshot'])) {
-            $employee->face_snapshot = $validated['face_snapshot'];
-        }
+        $employee->face_descriptor = $result['descriptor'];
+        $employee->face_snapshot = $validated['face_frames'][0];
         $employee->face_enrolled_at = now();
         $employee->face_biometric_id = 'BIO-FACE-' . ($employee->employee_code ?? 'EMP-' . $employee->id);
+        $employee->face_engine = $result['engine'];
+        $employee->face_quality = $result['quality'] ?? null;
+        $employee->face_consistency = $result['consistency'] ?? null;
+        $employee->face_enrollment_frames = $result['liveness']['frames'] ?? count($validated['face_frames']);
         $employee->save();
 
         return response()->json([
@@ -156,6 +145,9 @@ class EmployeeDashboardController extends Controller
             'message' => 'Facial biometrics successfully enrolled and stored in database!',
             'enrolled_at' => $employee->face_enrolled_at->format('d M Y, h:i A'),
             'biometric_id' => $employee->face_biometric_id,
+            'engine' => $employee->face_engine,
+            'quality' => $employee->face_quality,
+            'frames' => $employee->face_enrollment_frames,
         ]);
     }
 }

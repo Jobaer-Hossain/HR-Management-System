@@ -8,7 +8,7 @@
             <div class="col-auto">
                 <div class="position-relative">
                     <img src="{{ $employee->face_snapshot ?? $employee->avatar ?? 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80' }}" class="avatar-lg" alt="{{ $employee->name }}" style="width: 82px; height: 82px; border-radius: 20px; object-fit: cover; border: 3px solid rgba(255,255,255,0.2);">
-                    @if($employee->face_descriptor)
+                    @if($employee->hasReliableFaceBiometric())
                         <span class="position-absolute bottom-0 end-0 bg-success text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 24px; height: 24px; font-size: 0.75rem; border: 2px solid #0f172a;" title="Facial Biometrics Stored in DB">
                             <i class="bi bi-shield-check"></i>
                         </span>
@@ -29,7 +29,8 @@
                 </div>
             </div>
 
-            <!-- Profile Switcher dropdown to preview any staff portal -->
+            <!-- Profile Switcher dropdown is only available to administrators -->
+            @if(!auth()->user()->isEmployee())
             <div class="col-12 col-md-auto text-md-end">
                 <div class="dropdown">
                     <button class="btn btn-sm btn-outline-light dropdown-toggle px-3 py-2 fw-semibold" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.82rem;">
@@ -48,21 +49,43 @@
                     </ul>
                 </div>
             </div>
+            @endif
+        </div>
+    </div>
+
+    <div class="workspace-actions" aria-label="Employee quick actions">
+        <div class="workspace-actions-label">
+            <i class="bi bi-grid-1x2-fill"></i>
+            <span>My shortcuts</span>
+        </div>
+        <div class="workspace-action-list">
+            <a href="{{ route('attendance.mobile') }}" class="workspace-action primary">
+                <i class="bi bi-camera-video"></i> Attendance
+            </a>
+            <a href="{{ route('leaves.apply') }}" class="workspace-action">
+                <i class="bi bi-calendar-plus"></i> Request leave
+            </a>
+            <a href="{{ route('schedule.index') }}" class="workspace-action">
+                <i class="bi bi-calendar-week"></i> My schedule
+            </a>
+            <a href="{{ route('payrolls.index') }}" class="workspace-action">
+                <i class="bi bi-receipt"></i> Payslips
+            </a>
         </div>
     </div>
 
     <!-- Biometric Face Enrollment Status Card (Requested Feature) -->
-    <div class="card card-custom p-4 mb-4 border-start border-4 {{ $employee->face_descriptor ? 'border-success' : 'border-warning' }}">
+    <div class="card card-custom p-4 mb-4 border-start border-4 {{ $employee->hasReliableFaceBiometric() ? 'border-success' : 'border-warning' }}">
         <div class="row align-items-center g-3">
             <div class="col-12 col-md-8">
                 <div class="d-flex align-items-center gap-2 mb-2">
-                    <div style="width: 32px; height: 32px; background: {{ $employee->face_descriptor ? '#dcfce7' : '#fef3c7' }}; color: {{ $employee->face_descriptor ? '#15803d' : '#b45309' }}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
-                        <i class="bi {{ $employee->face_descriptor ? 'bi-shield-fill-check' : 'bi-exclamation-triangle-fill' }}"></i>
+                    <div style="width: 32px; height: 32px; background: {{ $employee->hasReliableFaceBiometric() ? '#dcfce7' : '#fef3c7' }}; color: {{ $employee->hasReliableFaceBiometric() ? '#15803d' : '#b45309' }}; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi {{ $employee->hasReliableFaceBiometric() ? 'bi-shield-fill-check' : 'bi-exclamation-triangle-fill' }}"></i>
                     </div>
                     <h5 class="fw-bold mb-0 text-slate-900" style="font-size: 1.1rem;">
                         Facial Biometrics Enrollment Status
                     </h5>
-                    @if($employee->face_descriptor)
+                    @if($employee->hasReliableFaceBiometric())
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
                             <i class="bi bi-check-circle-fill me-1"></i> Active in MySQL Database
                         </span>
@@ -73,7 +96,7 @@
                     @endif
                 </div>
 
-                @if($employee->face_descriptor)
+                @if($employee->hasReliableFaceBiometric())
                     <p class="text-muted small mb-2">
                         Your facial biometric profile is securely enrolled in the database. When you position your face before the attendance scanner, the system verifies your identity and logs your attendance.
                     </p>
@@ -92,7 +115,7 @@
             <div class="col-12 col-md-4 text-md-end">
                 <button type="button" class="btn btn-primary fw-bold px-3 py-2 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#faceEnrollModal" style="border-radius: 10px; font-size: 0.88rem;">
                     <i class="bi bi-camera"></i>
-                    <span>{{ $employee->face_descriptor ? 'Update / Re-Enroll Face' : 'Enroll My Face Now' }}</span>
+                    <span>{{ $employee->hasReliableFaceBiometric() ? 'Update / Re-Enroll Face' : 'Enroll My Face Now' }}</span>
                 </button>
             </div>
         </div>
@@ -298,7 +321,7 @@
                 </div>
                 <div class="modal-body text-center p-4">
                     <p class="text-muted small mb-3">
-                        Position your face in the center of the camera frame. The system will extract your 128-dimensional biometric descriptor and store it in the database for instant attendance matching.
+                        Position your face in the center of the camera frame. The server captures three live frames, detects the face with SCRFD, and creates a 512-dimensional ArcFace embedding. A liveness consistency check runs before storing the profile.
                     </p>
 
                     <!-- Camera Container -->
@@ -384,28 +407,27 @@ document.addEventListener('DOMContentLoaded', function() {
         captureBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Generating Biometrics...`;
         enrollAlert.style.display = 'block';
         enrollAlert.className = 'alert alert-info py-2 small mb-3';
-        enrollAlert.innerText = 'Extracting 128-dimensional facial embedding vector and saving to database...';
+        enrollAlert.innerText = 'Capturing three live frames and creating a secure ArcFace biometric profile...';
 
         // Capture snapshot from video or use existing avatar
-        let snapshotData = null;
+        const faceFrames = [];
         if (enrollStream && enrollVideo.videoWidth > 0) {
             enrollCanvas.width = enrollVideo.videoWidth;
             enrollCanvas.height = enrollVideo.videoHeight;
             const ctx = enrollCanvas.getContext('2d');
-            ctx.drawImage(enrollVideo, 0, 0);
-            snapshotData = enrollCanvas.toDataURL('image/jpeg', 0.8);
+            for (let frame = 0; frame < 3; frame++) {
+                ctx.drawImage(enrollVideo, 0, 0);
+                faceFrames.push(enrollCanvas.toDataURL('image/jpeg', 0.8));
+                await new Promise(resolve => setTimeout(resolve, 350));
+            }
         }
-
-        // Generate 512-float unit-normalized biometric descriptor vector
-        const vector = [];
-        let sumSq = 0;
-        for (let i = 0; i < 512; i++) {
-            const v = (Math.random() * 2) - 1;
-            vector.push(v);
-            sumSq += v * v;
+        if (faceFrames.length < 3) {
+            enrollAlert.className = 'alert alert-warning py-2 small mb-3';
+            enrollAlert.innerText = 'Start the camera and capture three live frames. A single uploaded image is not accepted for secure enrollment.';
+            captureBtn.disabled = false;
+            captureBtn.innerHTML = `<i class="bi bi-check-circle-fill me-1"></i> Capture & Store in DB`;
+            return;
         }
-        const mag = Math.sqrt(sumSq);
-        const normalizedVector = vector.map(v => Math.round((v / mag) * 100000) / 100000);
 
         try {
             const res = await fetch("{{ route('employee.enroll-face') }}", {
@@ -416,8 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 },
                 body: JSON.stringify({
                     employee_id: {{ $employee->id }},
-                    face_descriptor: normalizedVector,
-                    face_snapshot: snapshotData
+                    face_frames: faceFrames
                 })
             });
 

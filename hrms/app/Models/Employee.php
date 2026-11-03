@@ -31,10 +31,14 @@ class Employee extends Model
         'face_snapshot',
         'face_enrolled_at',
         'face_biometric_id',
+        'face_engine',
+        'face_quality',
+        'face_consistency',
+        'face_enrollment_frames',
     ];
 
     protected $casts = [
-        'face_descriptor' => 'array',
+        'face_descriptor' => \App\Casts\EncryptedArray::class,
         'face_enrolled_at' => 'datetime',
     ];
 
@@ -61,6 +65,13 @@ class Employee extends Model
     public function attendances()
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function hasReliableFaceBiometric(): bool
+    {
+        return $this->face_engine === 'scrfd-arcface-onnx'
+            && is_array($this->face_descriptor)
+            && count($this->face_descriptor) === 512;
     }
 
     public function leaves()
