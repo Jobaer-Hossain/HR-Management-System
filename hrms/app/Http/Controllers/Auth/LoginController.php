@@ -37,4 +37,32 @@ class LoginController extends Controller
         $this->middleware('guest')->except('logout');
         $this->middleware('auth')->only('logout');
     }
+
+    /**
+     * The user has been authenticated.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  mixed  $user
+     * @return mixed
+     */
+    protected function authenticated(\Illuminate\Http\Request $request, $user)
+    {
+        session(['active_role' => $user->role]);
+        session(['current_tenant_id' => $user->tenant_id ?? 1]);
+
+        $employee = \App\Models\Employee::where('email', $user->email)->first();
+        if ($employee) {
+            session(['portal_employee_id' => $employee->id]);
+        }
+
+        if ($user->role === 'hr_manager') {
+            return redirect()->route('dashboard.hr');
+        } elseif ($user->role === 'department_manager') {
+            return redirect()->route('dashboard.manager');
+        } elseif ($user->role === 'finance') {
+            return redirect()->route('dashboard.finance');
+        } else {
+            return redirect()->route('dashboard.employee');
+        }
+    }
 }

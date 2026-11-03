@@ -118,6 +118,19 @@ class AttendanceController extends Controller
         // Selected employee ID or simulated test profile
         $simulatedEmpId = $request->input('employee_id');
 
+        // If specific employee verification requested (e.g. self check-in on mobile or staff select)
+        $isSpecificEmployee = $simulatedEmpId && $simulatedEmpId !== 'auto';
+        if ($isSpecificEmployee) {
+            $targetEmp = Employee::where('tenant_id', $tenantId)->find($simulatedEmpId);
+            $targetName = $targetEmp ? $targetEmp->name : "Selected employee";
+            if (!$targetEmp || empty($targetEmp->face_descriptor)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => "Facial biometrics not enrolled yet for {$targetName}. Admin must take their facial photo in the Employee Directory first before attendance can be logged."
+                ], 403);
+            }
+        }
+
         // Fetch all employees with enrolled face descriptors stored in database
         $enrolledEmployees = Employee::with(['department', 'designation'])
             ->where('tenant_id', $tenantId)
@@ -127,8 +140,8 @@ class AttendanceController extends Controller
         if ($enrolledEmployees->isEmpty()) {
             return response()->json([
                 'success' => false,
-                'message' => 'No employee facial descriptors have been enrolled in the database yet. Please enroll first in the Employee Directory or Staff Portal.'
-            ], 404);
+                'message' => 'No employee facial biometrics are enrolled in the database yet. Admin must take and enroll facial photos from the Employee Directory first.'
+            ], 403);
         }
 
         // 1. If descriptor not passed directly from client-side face-api, extract it authentically from the face snapshot
@@ -163,18 +176,9 @@ class AttendanceController extends Controller
         $bestMatch = null;
         $bestSimilarity = -1.0;
 
-        // If specific employee verification requested (e.g. self check-in on mobile or staff select)
-        $isSpecificEmployee = $simulatedEmpId && $simulatedEmpId !== 'auto';
         $candidates = $isSpecificEmployee 
             ? $enrolledEmployees->where('id', (int)$simulatedEmpId)
             : $enrolledEmployees;
-
-        if ($candidates->isEmpty() && $isSpecificEmployee) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Selected employee has not enrolled their facial biometrics in the database yet.'
-            ], 404);
-        }
 
         foreach ($candidates as $emp) {
             $dbVector = $emp->face_descriptor;

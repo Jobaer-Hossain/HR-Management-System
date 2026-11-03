@@ -649,6 +649,10 @@
                         </button>
                     </form>
 
+                    <a href="{{ route('login') }}" class="btn btn-sm btn-outline-secondary py-1 px-2" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;" title="Login with email & password">
+                        <i class="bi bi-box-arrow-in-right me-1"></i> Login / Accounts
+                    </a>
+
                     <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
                         @csrf
                         <input type="hidden" name="role" value="finance">

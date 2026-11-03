@@ -19,14 +19,26 @@
             <div class="dropdown">
                 <button class="btn btn-outline-secondary dropdown-toggle bg-white px-3 py-2 fw-semibold" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.85rem;">
                     <i class="bi bi-person-circle me-1"></i> {{ $employee->name }}
+                    @if($employee->face_descriptor)
+                        <span class="badge bg-success-subtle text-success ms-1" style="font-size: 0.7rem;">🟢 Enrolled</span>
+                    @else
+                        <span class="badge bg-warning-subtle text-warning ms-1" style="font-size: 0.7rem;">⚠️ Face Pending</span>
+                    @endif
                 </button>
                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0" style="font-size: 0.85rem; max-height: 280px; overflow-y: auto;">
                     <li><h6 class="dropdown-header">Verify Identity As:</h6></li>
                     @foreach($allStaff as $st)
                         <li>
-                            <a class="dropdown-item d-flex align-items-center gap-2 {{ $st->id === $employee->id ? 'active fw-bold' : '' }}" href="{{ route('attendance.mobile', ['emp_id' => $st->id]) }}">
-                                <img src="{{ $st->face_snapshot ?? $st->avatar }}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover;">
-                                <span>{{ $st->name }} ({{ $st->employee_code ?? 'EMP-'.$st->id }})</span>
+                            <a class="dropdown-item d-flex align-items-center justify-content-between gap-2 {{ $st->id === $employee->id ? 'active fw-bold' : '' }}" href="{{ route('attendance.mobile', ['emp_id' => $st->id]) }}">
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="{{ $st->face_snapshot ?? $st->avatar }}" style="width: 22px; height: 22px; border-radius: 50%; object-fit: cover;">
+                                    <span>{{ $st->name }} ({{ $st->employee_code ?? 'EMP-'.$st->id }})</span>
+                                </div>
+                                @if($st->face_descriptor)
+                                    <span class="badge bg-success-subtle text-success py-0 px-1" style="font-size: 0.65rem;">Enrolled</span>
+                                @else
+                                    <span class="badge bg-warning-subtle text-warning py-0 px-1" style="font-size: 0.65rem;">Pending</span>
+                                @endif
                             </a>
                         </li>
                     @endforeach
@@ -71,6 +83,26 @@
                             {{ $employee->designation->title ?? 'Staff' }}
                         </span>
                     </div>
+
+                    @if(!$employee->face_descriptor)
+                        <div class="alert alert-warning py-2 px-3 mt-3 mb-0 text-start w-100" style="border-radius: 12px; font-size: 0.82rem; border-left: 4px solid #f59e0b; background: #fffbeb;">
+                            <div class="d-flex align-items-center gap-2 mb-1">
+                                <i class="bi bi-shield-exclamation text-warning fs-5"></i>
+                                <strong class="text-dark">Facial Biometrics Not Enrolled Yet</strong>
+                            </div>
+                            <p class="mb-2 text-secondary" style="font-size: 0.8rem; line-height: 1.4;">
+                                Admin must take and register your face photo in the <strong>Employee Directory</strong> before you can clock attendance.
+                            </p>
+                            <a href="{{ route('employees.index') }}" class="btn btn-sm btn-warning text-dark fw-bold py-1 px-3 d-inline-flex align-items-center gap-1 shadow-sm" style="border-radius: 8px; font-size: 0.75rem;">
+                                <i class="bi bi-camera-fill"></i> Go to Employee Directory (Admin Face Enrollment)
+                            </a>
+                        </div>
+                    @else
+                        <div class="alert alert-success py-1 px-3 mt-3 mb-0 text-center rounded-pill d-inline-flex align-items-center gap-2" style="font-size: 0.76rem; background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;">
+                            <i class="bi bi-shield-check-fill text-success"></i>
+                            <span>Biometric Face Profile Enrolled & Active</span>
+                        </div>
+                    @endif
                 </div>
 
                 <!-- Live Big Digital Clock -->
@@ -574,8 +606,14 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleCamBtn.addEventListener('click', toggleCameraStream);
     }
 
+    const isEmployeeEnrolled = {{ $employee->face_descriptor ? 'true' : 'false' }};
+
     // Trigger Punch with Face Recognition Verification
     async function executeFaceAttendancePunch() {
+        if (!isEmployeeEnrolled) {
+            alert("⚠️ Facial Biometrics Not Enrolled!\n\nYour facial biometrics have not been registered in the database yet.\nAdmin must enroll your face in the Employee Directory before you can punch attendance.");
+            return;
+        }
         if (isScanning) return;
         isScanning = true;
 

@@ -302,13 +302,20 @@
                 <!-- Feedback status alert -->
                 <div id="modalEnrollAlert" class="alert alert-info py-2 small mb-3 text-start" style="font-size: 0.8rem; display: none;"></div>
 
-                <div class="d-flex align-items-center justify-content-center gap-2">
+                <div class="d-flex align-items-center justify-content-center gap-2 mb-3">
                     <button type="button" class="btn btn-outline-secondary btn-sm px-3 py-2 fw-semibold" id="modalRestartCamBtn" style="border-radius: 8px;">
                         <i class="bi bi-arrow-repeat me-1"></i> Reset Camera
                     </button>
                     <button type="button" class="btn btn-primary btn-sm px-4 py-2 fw-bold" id="modalCaptureStoreBtn" style="border-radius: 8px;">
                         <i class="bi bi-camera-fill me-1"></i> Capture & Store in DB
                     </button>
+                </div>
+
+                <div class="pt-2 border-top">
+                    <label for="modalFaceFileInput" class="form-label text-muted small mb-1" style="font-size: 0.75rem;">
+                        <i class="bi bi-upload me-1"></i> Or upload facial photo file directly:
+                    </label>
+                    <input type="file" id="modalFaceFileInput" accept="image/*" class="form-control form-control-sm" style="border-radius: 8px; font-size: 0.8rem;">
                 </div>
             </div>
 
@@ -418,6 +425,9 @@ let employeeFaceModalInstance = null;
 
 function openFaceEnrollModal(empId, empName, empCode, empAvatar) {
     currentEnrollEmpId = empId;
+    uploadedFileBase64 = null;
+    const fin = document.getElementById('modalFaceFileInput');
+    if (fin) fin.value = '';
     document.getElementById('modalEmpName').innerText = empName;
     document.getElementById('modalEmpCode').innerText = empCode;
     document.getElementById('modalEmpAvatar').src = empAvatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100';
@@ -481,6 +491,28 @@ document.addEventListener('DOMContentLoaded', function() {
         restartBtn.addEventListener('click', startModalCamera);
     }
 
+    let uploadedFileBase64 = null;
+    const fileInput = document.getElementById('modalFaceFileInput');
+    if (fileInput) {
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    uploadedFileBase64 = evt.target.result;
+                    modalPlaceholder.style.display = 'flex';
+                    modalPlaceholder.innerHTML = `
+                        <img src="${uploadedFileBase64}" style="width: 100%; height: 100%; object-fit: cover;">
+                    `;
+                    modalAlert.style.display = 'block';
+                    modalAlert.className = 'alert alert-info py-2 small mb-3 text-start';
+                    modalAlert.innerHTML = `<i class="bi bi-image me-1"></i> Photo file loaded. Click "Capture & Store in DB" to save.`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     modalCaptureBtn.addEventListener('click', async function() {
         if (!currentEnrollEmpId) return;
 
@@ -498,11 +530,13 @@ document.addEventListener('DOMContentLoaded', function() {
             const ctx = modalCanvas.getContext('2d');
             ctx.drawImage(modalVideo, 0, 0);
             snapshotData = modalCanvas.toDataURL('image/jpeg', 0.85);
+        } else if (uploadedFileBase64) {
+            snapshotData = uploadedFileBase64;
         }
 
         if (!snapshotData) {
             modalAlert.className = 'alert alert-warning py-2 small mb-3 text-start';
-            modalAlert.innerHTML = `<i class="bi bi-camera-video-off me-1"></i> Please start your camera and face the lens before enrolling.`;
+            modalAlert.innerHTML = `<i class="bi bi-camera-video-off me-1"></i> Please start your camera or choose a photo file before enrolling.`;
             modalCaptureBtn.disabled = false;
             modalCaptureBtn.innerHTML = `<i class="bi bi-camera me-1"></i> Capture & Store Biometrics in DB`;
             return;

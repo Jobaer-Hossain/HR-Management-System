@@ -24,6 +24,24 @@
         </div>
     </div>
 
+    @php
+        $enrolledStaffCount = $employees->whereNotNull('face_descriptor')->count();
+    @endphp
+    @if($enrolledStaffCount === 0)
+        <div class="alert alert-warning d-flex align-items-center justify-content-between p-3 mb-4 rounded-4 shadow-sm" style="border-left: 5px solid #f59e0b;">
+            <div class="d-flex align-items-center gap-3">
+                <i class="bi bi-shield-exclamation text-warning fs-3"></i>
+                <div>
+                    <strong class="text-dark d-block">No Employee Faces Enrolled Yet (Biometrics Empty)</strong>
+                    <span class="text-secondary small">Faces must be captured by Admin from the Employee Directory before employees can clock attendance.</span>
+                </div>
+            </div>
+            <a href="{{ route('employees.index') }}" class="btn btn-warning fw-bold text-dark btn-sm px-3" style="border-radius: 8px;">
+                <i class="bi bi-camera-fill me-1"></i> Enroll Faces Now
+            </a>
+        </div>
+    @endif
+
     <!-- Main Scanner Terminal Row -->
     <div class="row g-4 justify-content-center mb-4">
         <div class="col-12 col-lg-8">
@@ -94,8 +112,8 @@
                                 <select id="employeeSelect" class="form-select border-start-0" style="border-radius: 0 10px 10px 0; font-size: 0.85rem;">
                                     <option value="auto" selected>✨ Auto-Detect Identity (Camera AI)</option>
                                     @foreach($employees as $emp)
-                                        <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-avatar="{{ $emp->avatar }}" data-dept="{{ $emp->department->name ?? 'General' }}" data-desig="{{ $emp->designation->title ?? 'Staff' }}">
-                                            {{ $emp->name }} ({{ $emp->department->name ?? 'General' }})
+                                        <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-avatar="{{ $emp->avatar }}" data-dept="{{ $emp->department->name ?? 'General' }}" data-desig="{{ $emp->designation->title ?? 'Staff' }}" data-enrolled="{{ $emp->face_descriptor ? '1' : '0' }}">
+                                            {{ $emp->name }} ({{ $emp->department->name ?? 'General' }}) — {{ $emp->face_descriptor ? '🟢 Enrolled' : '⚠️ Not Enrolled' }}
                                         </option>
                                     @endforeach
                                 </select>

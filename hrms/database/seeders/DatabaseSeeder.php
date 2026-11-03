@@ -172,6 +172,7 @@ class DatabaseSeeder extends Seeder
 
         $employees = [];
         foreach ($staffData as $item) {
+            $empEmail = strtolower(str_replace(' ', '.', $item['name'])) . '@easyteam.com';
             $emp = Employee::create([
                 'tenant_id' => $tenant1->id,
                 'branch_id' => $branchHq->id,
@@ -181,19 +182,42 @@ class DatabaseSeeder extends Seeder
                 'name' => $item['name'],
                 'first_name' => explode(' ', $item['name'])[0],
                 'last_name' => explode(' ', $item['name'])[1] ?? '',
-                'email' => strtolower(str_replace(' ', '.', $item['name'])) . '@easyteam.com',
+                'email' => $empEmail,
                 'phone' => '+880-1700-' . rand(100000, 999999),
                 'avatar' => $item['avatar'],
-                'face_descriptor' => $genBioVector($item['name'] . '_arcface_buffalo_l'),
-                'face_snapshot' => $item['avatar'],
-                'face_enrolled_at' => now(),
-                'face_biometric_id' => 'ARCFACE-BUFFALO-L-' . $item['code'],
+                'face_descriptor' => null, // Freshly empty: admin takes facial enrollment from Employee Directory
+                'face_snapshot' => null,
+                'face_enrolled_at' => null,
+                'face_biometric_id' => null,
                 'status' => $item['status'],
                 'salary' => $item['salary'],
                 'joining_date' => '2024-01-15',
                 'employment_type' => 'full_time',
             ]);
             $employees[$item['name']] = $emp;
+
+            // Also seed User login account for each employee
+            $empRole = 'employee';
+            if ($item['dept'] === $deptHr->id) {
+                $empRole = 'hr_manager';
+            } elseif ($item['dept'] === $deptFin->id) {
+                $empRole = 'finance';
+            } elseif ($item['desig'] === $desOpsMgr->id || $item['desig'] === $desEngLead->id) {
+                $empRole = 'department_manager';
+            }
+
+            User::updateOrCreate(
+                ['email' => $empEmail],
+                [
+                    'tenant_id' => $tenant1->id,
+                    'name' => $item['name'],
+                    'email' => $empEmail,
+                    'password' => Hash::make('password123'),
+                    'role' => $empRole,
+                    'avatar' => $item['avatar'],
+                    'status' => 'active',
+                ]
+            );
         }
 
         // 8. Seed Leave Applications (Matching Prototype Screenshot 1 & 3)
