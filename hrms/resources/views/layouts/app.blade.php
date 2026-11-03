@@ -316,6 +316,84 @@
                 </button>
             </div>
 
+            <!-- Tenant & Role Selection -->
+            @php
+                $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+                $roleMeta = [
+                    'hr_manager' => ['title' => 'HR Admin / Exec', 'icon' => 'bi-shield-check', 'color' => '#2563eb', 'name' => 'William Dolaz', 'sub' => 'HR Manager', 'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces'],
+                    'department_manager' => ['title' => 'Department Manager', 'icon' => 'bi-diagram-3-fill', 'color' => '#0891b2', 'name' => 'Robert Fox', 'sub' => 'Engineering Lead', 'avatar' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces'],
+                    'finance' => ['title' => 'Finance & Payroll', 'icon' => 'bi-cash-coin', 'color' => '#059669', 'name' => 'Jacob Jones', 'sub' => 'Payroll Officer', 'avatar' => 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces'],
+                    'employee' => ['title' => 'Staff / Self-Service', 'icon' => 'bi-person-circle', 'color' => '#7c3aed', 'name' => 'Cody Fisher', 'sub' => 'Staff Engineer', 'avatar' => 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop&crop=faces'],
+                ];
+                $activeRoleData = $roleMeta[$currentRole] ?? $roleMeta['hr_manager'];
+            @endphp
+
+            <!-- Role Switcher Dropdown in Sidebar -->
+            <div class="dropdown mb-2">
+                <button class="btn btn-sm w-100 text-start d-flex align-items-center justify-content-between border shadow-sm" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.8rem; font-weight: 700; background: #ffffff; border-color: #e2e8f0 !important;">
+                    <span class="d-flex align-items-center gap-2 text-truncate">
+                        <i class="bi {{ $activeRoleData['icon'] }}" style="color: {{ $activeRoleData['color'] }}; font-size: 1rem;"></i>
+                        <span>{{ $activeRoleData['title'] }}</span>
+                    </span>
+                    <i class="bi bi-chevron-down text-muted" style="font-size: 0.72rem;"></i>
+                </button>
+                <ul class="dropdown-menu shadow-lg w-100 border-0 p-2" style="font-size: 0.82rem; border-radius: 12px;">
+                    <li><h6 class="dropdown-header px-2 text-uppercase fw-bold text-muted" style="font-size: 0.68rem; letter-spacing: 0.05em;">Switch Active Role View</h6></li>
+                    <li>
+                        <form action="{{ route('role.switch') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="role" value="hr_manager">
+                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {{ $currentRole === 'hr_manager' ? 'active fw-bold' : '' }}">
+                                <i class="bi bi-shield-check text-primary"></i>
+                                <div>
+                                    <div class="fw-bold">HR Administrator</div>
+                                    <div class="small opacity-75" style="font-size: 0.7rem;">Executive oversight & settings</div>
+                                </div>
+                            </button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="{{ route('role.switch') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="role" value="department_manager">
+                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {{ $currentRole === 'department_manager' ? 'active fw-bold' : '' }}">
+                                <i class="bi bi-diagram-3-fill text-info"></i>
+                                <div>
+                                    <div class="fw-bold">Department Manager</div>
+                                    <div class="small opacity-75" style="font-size: 0.7rem;">Team attendance & leave approvals</div>
+                                </div>
+                            </button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="{{ route('role.switch') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="role" value="finance">
+                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {{ $currentRole === 'finance' ? 'active fw-bold' : '' }}">
+                                <i class="bi bi-cash-coin text-success"></i>
+                                <div>
+                                    <div class="fw-bold">Finance & Payroll</div>
+                                    <div class="small opacity-75" style="font-size: 0.7rem;">Tax, PF & BEFTN bank batch</div>
+                                </div>
+                            </button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="{{ route('role.switch') }}" method="POST">
+                            @csrf
+                            <input type="hidden" name="role" value="employee">
+                            <button type="submit" class="dropdown-item rounded-2 py-2 d-flex align-items-center gap-2 {{ $currentRole === 'employee' ? 'active fw-bold' : '' }}">
+                                <i class="bi bi-person-circle text-purple" style="color: #7c3aed;"></i>
+                                <div>
+                                    <div class="fw-bold">Staff / Self-Service</div>
+                                    <div class="small opacity-75" style="font-size: 0.7rem;">Face check-in, shifts & payslips</div>
+                                </div>
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+
             <!-- Tenant Selection Pill -->
             <div class="dropdown mb-3">
                 <button class="btn btn-light btn-sm w-100 text-start d-flex align-items-center justify-content-between border" type="button" data-bs-toggle="dropdown" style="border-radius: 10px; font-size: 0.8rem; font-weight: 600;">
@@ -348,46 +426,128 @@
                 </ul>
             </div>
 
-            <!-- Navigation Links -->
-            <div class="nav-section-title">MAIN MENU</div>
-            <a href="{{ route('dashboard') }}" class="nav-link-custom {{ request()->routeIs('dashboard*') ? 'active' : '' }}">
-                <i class="bi bi-grid-fill"></i>
-                <span>Dashboard</span>
-            </a>
-            <a href="{{ route('employees.index') }}" class="nav-link-custom {{ request()->routeIs('employees*') ? 'active' : '' }}">
-                <i class="bi bi-people"></i>
-                <span>Employees</span>
-            </a>
-            <a href="{{ route('leaves.index') }}" class="nav-link-custom {{ request()->routeIs('leaves.index') ? 'active' : '' }}">
-                <i class="bi bi-calendar-event"></i>
-                <span>Leave Management</span>
-            </a>
-            <a href="{{ route('leaves.calendar') }}" class="nav-link-custom {{ request()->routeIs('leaves.calendar') ? 'active' : '' }}">
-                <i class="bi bi-calendar3-range"></i>
-                <span>Leave Calendar</span>
-            </a>
-            <a href="{{ route('attendance.index') }}" class="nav-link-custom {{ request()->routeIs('attendance.index') ? 'active' : '' }}">
-                <i class="bi bi-fingerprint"></i>
-                <span>Attendance</span>
-            </a>
-            <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
-                <i class="bi bi-camera-video"></i>
-                <span>Facial Scanner</span>
-            </a>
-            <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
-                <i class="bi bi-calendar-week"></i>
-                <span>Schedule</span>
-            </a>
-            <a href="{{ route('payrolls.index') }}" class="nav-link-custom {{ request()->routeIs('payrolls*') ? 'active' : '' }}">
-                <i class="bi bi-credit-card"></i>
-                <span>Payroll</span>
-            </a>
+            <!-- Role-Specific Navigation Links -->
+            @if($currentRole === 'department_manager')
+                <div class="nav-section-title">MANAGER PORTAL</div>
+                <a href="{{ route('dashboard.manager') }}" class="nav-link-custom {{ request()->routeIs('dashboard.manager') ? 'active' : '' }}">
+                    <i class="bi bi-diagram-3-fill"></i>
+                    <span>Team Dashboard</span>
+                </a>
+                <a href="{{ route('leaves.calendar') }}" class="nav-link-custom {{ request()->routeIs('leaves.calendar') ? 'active' : '' }}">
+                    <i class="bi bi-calendar3-range"></i>
+                    <span>Team Calendar</span>
+                </a>
+                <a href="{{ route('leaves.index') }}" class="nav-link-custom {{ request()->routeIs('leaves.index') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Leave Approvals</span>
+                </a>
+                <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-week"></i>
+                    <span>Shift Planner</span>
+                </a>
+                <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
+                    <i class="bi bi-camera-video"></i>
+                    <span>Facial Scanner</span>
+                </a>
+                <div class="nav-section-title">SELF-SERVICE</div>
+                <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span>My Staff Profile</span>
+                </a>
 
-            <div class="nav-section-title">SELF-SERVICE</div>
-            <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') || request()->routeIs('portal*') ? 'active' : '' }}">
-                <i class="bi bi-person-badge"></i>
-                <span>Employee Portal</span>
-            </a>
+            @elseif($currentRole === 'finance')
+                <div class="nav-section-title">FINANCE & AUDIT</div>
+                <a href="{{ route('dashboard.finance') }}" class="nav-link-custom {{ request()->routeIs('dashboard.finance') ? 'active' : '' }}">
+                    <i class="bi bi-cash-coin"></i>
+                    <span>Finance Dashboard</span>
+                </a>
+                <a href="{{ route('payrolls.index') }}" class="nav-link-custom {{ request()->routeIs('payrolls.index') ? 'active' : '' }}">
+                    <i class="bi bi-credit-card"></i>
+                    <span>Disbursement Runs</span>
+                </a>
+                <a href="{{ route('payrolls.generate') }}" class="nav-link-custom {{ request()->routeIs('payrolls.generate') ? 'active' : '' }}">
+                    <i class="bi bi-plus-circle"></i>
+                    <span>Process Payroll</span>
+                </a>
+                <a href="{{ route('employees.index') }}" class="nav-link-custom {{ request()->routeIs('employees*') ? 'active' : '' }}">
+                    <i class="bi bi-people"></i>
+                    <span>Salary Master List</span>
+                </a>
+                <div class="nav-section-title">SELF-SERVICE</div>
+                <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span>My Staff Profile</span>
+                </a>
+
+            @elseif($currentRole === 'employee')
+                <div class="nav-section-title">MY WORKSPACE</div>
+                <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') || request()->routeIs('portal*') ? 'active' : '' }}">
+                    <i class="bi bi-grid-fill"></i>
+                    <span>Employee Dashboard</span>
+                </a>
+                <a href="{{ route('employee.dashboard') }}#biometrics" class="nav-link-custom">
+                    <i class="bi bi-shield-check text-success"></i>
+                    <span>Face Enrollment</span>
+                </a>
+                <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
+                    <i class="bi bi-camera-video"></i>
+                    <span>Live Face Scanner</span>
+                </a>
+                <a href="{{ route('leaves.apply') }}" class="nav-link-custom {{ request()->routeIs('leaves.apply') ? 'active' : '' }}">
+                    <i class="bi bi-send-plus"></i>
+                    <span>Apply for Leave</span>
+                </a>
+                <a href="{{ route('leaves.calendar') }}" class="nav-link-custom {{ request()->routeIs('leaves.calendar') ? 'active' : '' }}">
+                    <i class="bi bi-calendar3-range"></i>
+                    <span>Holiday & Leave View</span>
+                </a>
+                <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-week"></i>
+                    <span>My Work Shifts</span>
+                </a>
+
+            @else
+                <!-- Full HR Admin Navigation -->
+                <div class="nav-section-title">MAIN MENU</div>
+                <a href="{{ route('dashboard.hr') }}" class="nav-link-custom {{ request()->routeIs('dashboard*') && !request()->routeIs('dashboard.manager') && !request()->routeIs('dashboard.finance') && !request()->routeIs('dashboard.employee') ? 'active' : '' }}">
+                    <i class="bi bi-grid-fill"></i>
+                    <span>Dashboard</span>
+                </a>
+                <a href="{{ route('employees.index') }}" class="nav-link-custom {{ request()->routeIs('employees*') ? 'active' : '' }}">
+                    <i class="bi bi-people"></i>
+                    <span>Employees</span>
+                </a>
+                <a href="{{ route('leaves.index') }}" class="nav-link-custom {{ request()->routeIs('leaves.index') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-event"></i>
+                    <span>Leave Management</span>
+                </a>
+                <a href="{{ route('leaves.calendar') }}" class="nav-link-custom {{ request()->routeIs('leaves.calendar') ? 'active' : '' }}">
+                    <i class="bi bi-calendar3-range"></i>
+                    <span>Leave Calendar</span>
+                </a>
+                <a href="{{ route('attendance.index') }}" class="nav-link-custom {{ request()->routeIs('attendance.index') ? 'active' : '' }}">
+                    <i class="bi bi-fingerprint"></i>
+                    <span>Attendance</span>
+                </a>
+                <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
+                    <i class="bi bi-camera-video"></i>
+                    <span>Facial Scanner</span>
+                </a>
+                <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
+                    <i class="bi bi-calendar-week"></i>
+                    <span>Schedule</span>
+                </a>
+                <a href="{{ route('payrolls.index') }}" class="nav-link-custom {{ request()->routeIs('payrolls*') ? 'active' : '' }}">
+                    <i class="bi bi-credit-card"></i>
+                    <span>Payroll</span>
+                </a>
+
+                <div class="nav-section-title">SELF-SERVICE</div>
+                <a href="{{ route('employee.dashboard') }}" class="nav-link-custom {{ request()->routeIs('employee.dashboard*') || request()->routeIs('portal*') ? 'active' : '' }}">
+                    <i class="bi bi-person-badge"></i>
+                    <span>Employee Portal</span>
+                </a>
+            @endif
 
             <div class="nav-section-title">OTHER</div>
             <a href="#" class="nav-link-custom d-flex justify-content-between align-items-center">
@@ -416,20 +576,21 @@
                 <button class="upgrade-btn">Upgrade Now</button>
             </div>
 
-            <!-- User Pill from Screenshot 1 (William Dolaz) -->
+            <!-- Dynamic User Pill Based on Active Role -->
             <div class="dropdown">
                 <a href="#" class="user-pill dropdown-toggle" data-bs-toggle="dropdown">
                     <div class="d-flex align-items-center gap-2">
-                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces" alt="William Dolaz" class="user-avatar">
+                        <img src="{{ $activeRoleData['avatar'] }}" alt="{{ $activeRoleData['name'] }}" class="user-avatar">
                         <div>
-                            <div class="fw-bold" style="font-size: 0.82rem; line-height: 1.2;">William Dolaz</div>
-                            <div class="text-muted" style="font-size: 0.72rem;">HR Manager</div>
+                            <div class="fw-bold" style="font-size: 0.82rem; line-height: 1.2;">{{ $activeRoleData['name'] }}</div>
+                            <div class="text-muted" style="font-size: 0.72rem;">{{ $activeRoleData['sub'] }}</div>
                         </div>
                     </div>
                 </a>
                 <ul class="dropdown-menu dropdown-menu-end shadow border-0" style="font-size: 0.85rem;">
-                    <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="bi bi-person me-2"></i> Profile</a></li>
-                    <li><a class="dropdown-item" href="{{ route('about') }}"><i class="bi bi-sliders me-2"></i> Account Settings</a></li>
+                    <li><h6 class="dropdown-header">Logged In As {{ $activeRoleData['name'] }}</h6></li>
+                    <li><a class="dropdown-item" href="{{ route('dashboard') }}"><i class="bi bi-person me-2"></i> Role Profile</a></li>
+                    <li><a class="dropdown-item" href="{{ route('about') }}"><i class="bi bi-sliders me-2"></i> System Settings</a></li>
                     <li><hr class="dropdown-divider"></li>
                     <li>
                         <form action="{{ route('logout') }}" method="POST">
@@ -443,6 +604,53 @@
 
         <!-- Main Content Area -->
         <main class="main-content">
+            <!-- Top Role Context Strip (SRS Section 6: Role Based Access & Testing Bar) -->
+            <div class="d-flex align-items-center justify-content-between p-2 px-3 mb-4 rounded-3 bg-white border shadow-sm flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge" style="background-color: {{ $activeRoleData['color'] }}; color: white; font-size: 0.72rem; padding: 5px 9px;">
+                        <i class="bi {{ $activeRoleData['icon'] }} me-1"></i> CURRENT ROLE
+                    </span>
+                    <span class="fw-bold text-dark small">{{ $activeRoleData['title'] }}</span>
+                    <span class="text-muted small d-none d-md-inline">&bull; {{ $activeRoleData['name'] }}</span>
+                </div>
+
+                <!-- 1-Click Role Switcher Pills -->
+                <div class="d-flex align-items-center gap-1 flex-wrap">
+                    <span class="text-muted small fw-semibold me-1 d-none d-lg-inline" style="font-size: 0.75rem;">Switch Dashboard View:</span>
+                    
+                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="role" value="hr_manager">
+                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'hr_manager' ? 'btn-primary' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="bi bi-shield-check me-1"></i> HR Admin
+                        </button>
+                    </form>
+
+                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="role" value="department_manager">
+                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'department_manager' ? 'btn-info text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="bi bi-diagram-3-fill me-1"></i> Dept Manager
+                        </button>
+                    </form>
+
+                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="role" value="finance">
+                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'finance' ? 'btn-success text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="bi bi-cash-coin me-1"></i> Finance & Payroll
+                        </button>
+                    </form>
+
+                    <form action="{{ route('role.switch') }}" method="POST" class="d-inline">
+                        @csrf
+                        <input type="hidden" name="role" value="employee">
+                        <button type="submit" class="btn btn-sm py-1 px-2 {{ $currentRole === 'employee' ? 'btn-dark text-white' : 'btn-light border' }}" style="border-radius: 6px; font-size: 0.75rem; font-weight: 600;">
+                            <i class="bi bi-person-circle me-1"></i> Staff Portal
+                        </button>
+                    </form>
+                </div>
+            </div>
             <!-- Toast / Alerts -->
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">

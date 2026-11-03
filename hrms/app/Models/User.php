@@ -18,9 +18,13 @@ class User extends Authenticatable
      * @var array<int, string>
      */
     protected $fillable = [
+        'tenant_id',
         'name',
         'email',
         'password',
+        'role',
+        'avatar',
+        'status',
     ];
 
     /**
@@ -41,4 +45,24 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function isHrManager(): bool
+    {
+        return in_array($this->role, ['hr_manager', 'super_admin', 'owner', 'admin']);
+    }
+
+    public function isDepartmentManager(): bool
+    {
+        return in_array($this->role, ['department_manager', 'line_manager', 'team_lead']);
+    }
+
+    public function isFinance(): bool
+    {
+        return in_array($this->role, ['finance', 'finance_manager', 'payroll_officer']);
+    }
+
+    public function isEmployee(): bool
+    {
+        return $this->role === 'employee';
+    }
 }

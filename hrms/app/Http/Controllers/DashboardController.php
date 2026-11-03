@@ -13,11 +13,25 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        // Multi-tenant resolution (default to tenant 1 or selected)
+        // Role-Based Dashboard Routing
+        $activeRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+
+        if ($activeRole === 'department_manager' && !$request->has('force_admin')) {
+            return app(ManagerDashboardController::class)->index($request);
+        }
+
+        if ($activeRole === 'finance' && !$request->has('force_admin')) {
+            return app(PayrollDashboardController::class)->index($request);
+        }
+
+        if ($activeRole === 'employee' && !$request->has('force_admin')) {
+            return app(EmployeeDashboardController::class)->index($request);
+        }
+
+        // 1. HR Manager / Executive Dashboard (Screenshot 1 EasyTeam: 128 total, 121 active, 7 inactive, 5 leaves)
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
         $tenant = Tenant::find($tenantId) ?? Tenant::first();
 
-        // 1. Metric Cards (Matching Screenshot 1 EasyTeam: 128 total, 121 active, 7 inactive, 5 leaves)
         $totalEmployees = 128;
         $activeEmployees = 121;
         $inactiveEmployees = 7;
@@ -104,6 +118,16 @@ class DashboardController extends Controller
             'inactiveEmployees',
             'onBoardingEmployees'
         ));
+    }
+
+    public function switchRole(Request $request)
+    {
+        $role = $request->input('role', 'hr_manager');
+        $validRoles = ['hr_manager', 'department_manager', 'finance', 'employee'];
+        if (in_array($role, $validRoles)) {
+            session(['active_role' => $role]);
+        }
+        return redirect()->route('dashboard')->with('success', 'Switched active dashboard view to ' . strtoupper(str_replace('_', ' ', $role)));
     }
 
     public function switchTenant(Request $request)

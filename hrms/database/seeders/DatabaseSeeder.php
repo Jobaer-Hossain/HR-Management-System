@@ -46,7 +46,7 @@ class DatabaseSeeder extends Seeder
             'currency' => 'BDT',
         ]);
 
-        // 2. Users (Admin matching Screenshot 1: William Dolaz, HR Manager)
+        // 2. Users (Role-based users matching SRS section 6)
         User::create([
             'tenant_id' => $tenant1->id,
             'name' => 'William Dolaz',
@@ -54,6 +54,36 @@ class DatabaseSeeder extends Seeder
             'password' => Hash::make('password123'),
             'role' => 'hr_manager',
             'avatar' => 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80',
+            'status' => 'active',
+        ]);
+
+        User::create([
+            'tenant_id' => $tenant1->id,
+            'name' => 'Robert Fox',
+            'email' => 'manager@hrms.com',
+            'password' => Hash::make('password123'),
+            'role' => 'department_manager',
+            'avatar' => 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=100&auto=format&fit=crop&q=80',
+            'status' => 'active',
+        ]);
+
+        User::create([
+            'tenant_id' => $tenant1->id,
+            'name' => 'Jacob Jones',
+            'email' => 'finance@hrms.com',
+            'password' => Hash::make('password123'),
+            'role' => 'finance',
+            'avatar' => 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+            'status' => 'active',
+        ]);
+
+        User::create([
+            'tenant_id' => $tenant1->id,
+            'name' => 'Cody Fisher',
+            'email' => 'employee@hrms.com',
+            'password' => Hash::make('password123'),
+            'role' => 'employee',
+            'avatar' => 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&auto=format&fit=crop&q=80',
             'status' => 'active',
         ]);
 

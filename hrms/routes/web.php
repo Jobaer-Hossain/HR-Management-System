@@ -8,6 +8,8 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\ShiftScheduleController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\EmployeeDashboardController;
+use App\Http\Controllers\ManagerDashboardController;
+use App\Http\Controllers\PayrollDashboardController;
 use App\Http\Controllers\PageController;
 
 // Default Landing / Redirect
@@ -18,16 +20,27 @@ Route::get('/', function () {
 // Authentication routes
 Auth::routes();
 
-// Tenant Switcher
+// Tenant & Role Switchers
 Route::post('/tenant/switch', [DashboardController::class, 'switchTenant'])->name('tenant.switch');
+Route::match(['get', 'post'], '/role/switch', [DashboardController::class, 'switchRole'])->name('role.switch');
 
-// Dashboard (Screenshot 1: EasyTeam HR Admin)
+// Role-Based Central Dashboards
 Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.view');
 
+// Dedicated Role Dashboards (Direct Access)
+Route::get('/dashboard/hr', function () {
+    session(['active_role' => 'hr_manager']);
+    return redirect()->route('dashboard', ['force_admin' => 1]);
+})->name('dashboard.hr');
+
+Route::get('/dashboard/manager', [ManagerDashboardController::class, 'index'])->name('dashboard.manager');
+Route::get('/dashboard/finance', [PayrollDashboardController::class, 'index'])->name('dashboard.finance');
+Route::get('/dashboard/employee', [EmployeeDashboardController::class, 'index'])->name('dashboard.employee');
+
 // Employee Self-Service Dashboard / Portal
-Route::get('/portal', [EmployeeDashboardController::class, 'index'])->name('portal.dashboard');
-Route::get('/employee/dashboard', [EmployeeDashboardController::class, 'index'])->name('employee.dashboard');
+Route::get('/portal', [EmployeeDashboardController::class, 'index'])->name('employee.dashboard');
+Route::get('/employee/dashboard', [EmployeeDashboardController::class, 'index'])->name('portal.dashboard');
 Route::post('/employee/enroll-face', [EmployeeDashboardController::class, 'enrollFace'])->name('employee.enroll-face');
 
 // Employee Management
