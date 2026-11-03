@@ -4,17 +4,25 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\LeaveController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\ShiftScheduleController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\PageController;
 
-// Default
-Route::get('/', [PageController::class, 'welcome'])->name('welcome');
+// Default Landing / Redirect
+Route::get('/', function () {
+    return redirect()->route('dashboard');
+})->name('welcome');
 
-// Authentication routes (already by Laravel UI/Auth)
+// Authentication routes
 Auth::routes();
 
-// Dashboard
+// Tenant Switcher
+Route::post('/tenant/switch', [DashboardController::class, 'switchTenant'])->name('tenant.switch');
+
+// Dashboard (Screenshot 1: EasyTeam)
 Route::get('/home', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.view');
 
 // Employee Management
 Route::prefix('employees')->group(function () {
@@ -26,20 +34,37 @@ Route::prefix('employees')->group(function () {
     Route::delete('/{id}', [EmployeeController::class, 'destroy'])->name('employees.destroy');
 });
 
-// Leave Management
+// Leave Management (Screenshot 3: P-HR Leave Calendar + Approval workflows)
 Route::prefix('leaves')->group(function () {
     Route::get('/', [LeaveController::class, 'index'])->name('leaves.index');
+    Route::get('/calendar', [LeaveController::class, 'calendar'])->name('leaves.calendar');
     Route::get('/apply', [LeaveController::class, 'apply'])->name('leaves.apply');
     Route::post('/apply', [LeaveController::class, 'store'])->name('leaves.store');
     Route::get('/approve/{id}', [LeaveController::class, 'approve'])->name('leaves.approve');
     Route::get('/reject/{id}', [LeaveController::class, 'reject'])->name('leaves.reject');
 });
 
-// Payroll
+// Attendance Management (Screenshot 2: Numla Time & Attendance Biometric)
+Route::prefix('attendance')->group(function () {
+    Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin');
+    Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout');
+    Route::post('/break', [AttendanceController::class, 'toggleBreak'])->name('attendance.break');
+});
+
+// Shift Schedule Management (Screenshot 4: Agendrix Schedule Planner)
+Route::prefix('schedule')->group(function () {
+    Route::get('/', [ShiftScheduleController::class, 'index'])->name('schedule.index');
+    Route::post('/', [ShiftScheduleController::class, 'store'])->name('schedule.store');
+    Route::delete('/{id}', [ShiftScheduleController::class, 'destroy'])->name('schedule.destroy');
+});
+
+// Payroll (Screenshot 1: Payroll Overview + Bangladesh Tax & PF Salary voucher)
 Route::prefix('payrolls')->group(function () {
     Route::get('/', [PayrollController::class, 'index'])->name('payrolls.index');
     Route::get('/generate', [PayrollController::class, 'generate'])->name('payrolls.generate');
     Route::post('/generate', [PayrollController::class, 'store'])->name('payrolls.store');
+    Route::post('/{id}/toggle-payment', [PayrollController::class, 'togglePayment'])->name('payrolls.toggle-payment');
     Route::get('/payslip/{id}', [PayrollController::class, 'payslip'])->name('payrolls.payslip');
 });
 
