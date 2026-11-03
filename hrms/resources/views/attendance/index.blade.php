@@ -3,15 +3,18 @@
 @section('content')
 <div class="attendance-page">
     <!-- Header -->
-    <div class="d-flex align-items-center justify-content-between mb-4">
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-3">
         <div>
             <h2 class="fw-bold mb-1" style="font-size: 1.6rem; letter-spacing: -0.5px;">Check In / Check Out</h2>
             <p class="text-muted mb-0" style="font-size: 0.88rem;">Biometric & Geofenced Time Tracking (Numla System)</p>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-2 rounded-pill fw-semibold">
-                <i class="bi bi-geo-alt-fill me-1"></i> Geofence Active (Radius 500m)
-            </span>
+            <a href="{{ route('attendance.index') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
+                <i class="bi bi-fingerprint me-1"></i> Fingerprint Biometric
+            </a>
+            <a href="{{ route('attendance.face') }}" class="btn btn-outline-primary fw-semibold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
+                <i class="bi bi-camera-video me-1"></i> Facial AI Scanner
+            </a>
         </div>
     </div>
 

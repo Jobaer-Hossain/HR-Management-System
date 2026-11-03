@@ -44,9 +44,11 @@ Route::prefix('leaves')->group(function () {
     Route::get('/reject/{id}', [LeaveController::class, 'reject'])->name('leaves.reject');
 });
 
-// Attendance Management (Screenshot 2: Numla Time & Attendance Biometric)
+// Attendance Management (Screenshot 2: Numla Time & Attendance Biometric + AI Face Scanner)
 Route::prefix('attendance')->group(function () {
     Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::get('/face', [AttendanceController::class, 'faceScanner'])->name('attendance.face');
+    Route::post('/face-scan', [AttendanceController::class, 'processFaceScan'])->name('attendance.facescan');
     Route::post('/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.checkin');
     Route::post('/check-out', [AttendanceController::class, 'checkOut'])->name('attendance.checkout');
     Route::post('/break', [AttendanceController::class, 'toggleBreak'])->name('attendance.break');

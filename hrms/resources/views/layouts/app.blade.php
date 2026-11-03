@@ -366,9 +366,13 @@
                 <i class="bi bi-calendar3-range"></i>
                 <span>Leave Calendar</span>
             </a>
-            <a href="{{ route('attendance.index') }}" class="nav-link-custom {{ request()->routeIs('attendance*') ? 'active' : '' }}">
+            <a href="{{ route('attendance.index') }}" class="nav-link-custom {{ request()->routeIs('attendance.index') ? 'active' : '' }}">
                 <i class="bi bi-fingerprint"></i>
                 <span>Attendance</span>
+            </a>
+            <a href="{{ route('attendance.face') }}" class="nav-link-custom {{ request()->routeIs('attendance.face') ? 'active' : '' }}">
+                <i class="bi bi-camera-video"></i>
+                <span>Facial Scanner</span>
             </a>
             <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
                 <i class="bi bi-calendar-week"></i>
