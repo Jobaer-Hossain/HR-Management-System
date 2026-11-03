@@ -124,10 +124,36 @@ class DashboardController extends Controller
     {
         $role = $request->input('role', 'hr_manager');
         $validRoles = ['hr_manager', 'department_manager', 'finance', 'employee'];
+
         if (in_array($role, $validRoles)) {
             session(['active_role' => $role]);
+
+            // Synchronize Auth User & Active Profile
+            $roleUsers = [
+                'hr_manager' => ['userId' => 1, 'empId' => 1],
+                'department_manager' => ['userId' => 2, 'empId' => 2],
+                'finance' => ['userId' => 3, 'empId' => 4],
+                'employee' => ['userId' => 4, 'empId' => 1],
+            ];
+
+            if (isset($roleUsers[$role])) {
+                \Illuminate\Support\Facades\Auth::loginUsingId($roleUsers[$role]['userId']);
+                session(['portal_employee_id' => $roleUsers[$role]['empId']]);
+            }
         }
-        return redirect()->route('dashboard')->with('success', 'Switched active dashboard view to ' . strtoupper(str_replace('_', ' ', $role)));
+
+        $readableRole = ucwords(str_replace('_', ' ', $role));
+
+        // Direct to appropriate role dashboard
+        if ($role === 'department_manager') {
+            return redirect()->route('dashboard.manager')->with('success', "Active view switched to [{$readableRole}]. Showing team management & approvals.");
+        } elseif ($role === 'finance') {
+            return redirect()->route('dashboard.finance')->with('success', "Active view switched to [{$readableRole}]. Showing payroll & financial disbursements.");
+        } elseif ($role === 'employee') {
+            return redirect()->route('employee.dashboard')->with('success', "Active view switched to [{$readableRole}]. Showing self-service portal & punch terminal.");
+        }
+
+        return redirect()->route('dashboard', ['force_admin' => 1])->with('success', "Active view switched to [{$readableRole}]. Full administrative controls active.");
     }
 
     public function switchTenant(Request $request)

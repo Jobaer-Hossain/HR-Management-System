@@ -565,10 +565,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (isScanning) return;
         isScanning = true;
 
-        // Reveal Camera
+        // Reveal Camera Box
         cameraBox.style.display = 'block';
         cameraPrompt.innerText = 'Scanning facial landmarks...';
         punchText.innerText = 'Verifying...';
+
+        let snapshotData = null;
 
         try {
             if (!stream) {
@@ -579,21 +581,42 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         } catch (e) {
             console.warn('Camera stream unavailable, continuing in verified sensor mode:', e);
-            cameraPrompt.innerText = 'Analyzing face sensor...';
+            cameraPrompt.innerText = 'Analyzing facial biometric sensor...';
         }
 
         setTimeout(async () => {
-            cameraPrompt.innerText = 'Verifying identity...';
+            cameraPrompt.innerText = 'Verifying identity with database records...';
+
+            // Capture camera frame if video is ready
+            if (stream && video.videoWidth > 0 && canvas) {
+                try {
+                    canvas.width = 480;
+                    canvas.height = 480;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(video, 0, 0, 480, 480);
+                    snapshotData = canvas.toDataURL('image/jpeg', 0.85);
+                } catch (ce) {
+                    console.warn('Snapshot frame capture note:', ce);
+                }
+            }
+
+            // Determine intended punch action based on current button state
+            const targetPunchType = punchBtn.classList.contains('btn-checked-in') ? 'check_out' : 'check_in';
 
             try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
                 const response = await fetch("{{ route('attendance.facescan') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({
-                        employee_id: activeEmployeeId
+                        employee_id: activeEmployeeId,
+                        punch_type: targetPunchType,
+                        face_snapshot: snapshotData
                     })
                 });
 
@@ -601,7 +624,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (data.success) {
                     // Update Verified Card Banner
-                    document.getElementById('verifiedEmpAvatar').src = data.employee.avatar;
+                    const avatarEl = document.getElementById('verifiedEmpAvatar');
+                    if (avatarEl) {
+                        avatarEl.src = snapshotData || data.employee.avatar;
+                    }
                     document.getElementById('verifiedEmpName').innerText = data.employee.name;
                     document.getElementById('verifiedEmpMeta').innerText = `${data.employee.designation} • ${data.employee.department}`;
                     document.getElementById('verifiedConfidencePill').innerText = `${data.confidence} Match`;
@@ -615,15 +641,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Update Top User Header Info
                     document.getElementById('punchGreetingText').innerText = `Welcome Back, ${data.employee.name}!`;
-                    document.getElementById('punchUserAvatar').src = data.employee.avatar;
+                    const userAvatarEl = document.getElementById('punchUserAvatar');
+                    if (userAvatarEl && snapshotData) {
+                        userAvatarEl.src = snapshotData;
+                    }
                     document.getElementById('punchUserCode').innerText = data.employee.employee_code;
 
                     // Update Display Stats
-                    if (data.attendance.check_in) {
+                    if (data.attendance.check_in && data.attendance.check_in !== '--:--') {
                         document.getElementById('displayCheckInVal').innerText = data.attendance.check_in;
                     }
                     if (data.attendance.check_out && data.attendance.check_out !== '--:--') {
                         document.getElementById('displayCheckOutVal').innerText = data.attendance.check_out;
+                    }
+                    if (data.attendance.worked_hours) {
+                        document.getElementById('displayHoursVal').innerText = data.attendance.worked_hours;
                     }
 
                     // Toggle Button State
@@ -637,17 +669,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     cameraPrompt.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Verified: ${data.employee.name}</span>`;
 
-                    // Subtle Audio Feedback
+                    // Pleasant Audio Confirmation Chime
                     try {
                         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.connect(gain);
                         gain.connect(audioCtx.destination);
-                        osc.frequency.value = 880;
+                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
                         gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
                         osc.start();
-                        osc.stop(audioCtx.currentTime + 0.15);
+                        osc.stop(audioCtx.currentTime + 0.35);
                     } catch(e) {}
 
                 } else {

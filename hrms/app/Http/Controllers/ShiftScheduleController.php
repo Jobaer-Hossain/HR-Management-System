@@ -20,12 +20,25 @@ class ShiftScheduleController extends Controller
         $days = ['Sat', 'Sun', 'Mon', 'Tues', 'Wed', 'Thu', 'Fri'];
         $selectedRange = $request->get('range', 'July, 15, 2025 - 22, July, 2025');
 
-        // Fetch employees with their shift schedules for this tenant
-        $employees = Employee::where('tenant_id', $tenantId)
+        $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+
+        $empQuery = Employee::where('tenant_id', $tenantId)
             ->with(['shiftSchedules' => function ($q) {
                 $q->orderBy('id', 'asc');
-            }])
-            ->get();
+            }]);
+
+        // Role-Based Schedule Distribution
+        if ($currentRole === 'employee') {
+            $empId = session('portal_employee_id', 1);
+            $empQuery->where('id', $empId);
+        } elseif ($currentRole === 'department_manager') {
+            $managerEmp = Employee::find(session('portal_employee_id', 2));
+            if ($managerEmp && $managerEmp->department_id) {
+                $empQuery->where('department_id', $managerEmp->department_id);
+            }
+        }
+
+        $employees = $empQuery->get();
 
         // If no employees or schedules in other tenant, fallback to all employees with schedules
         if ($employees->isEmpty()) {

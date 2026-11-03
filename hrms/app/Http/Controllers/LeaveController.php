@@ -15,9 +15,25 @@ class LeaveController extends Controller
     public function index()
     {
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $leaves = LeaveApplication::with(['employee.department', 'leaveType'])
-            ->where('tenant_id', $tenantId)
-            ->latest()
+        $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+
+        $query = LeaveApplication::with(['employee.department', 'leaveType'])
+            ->where('tenant_id', $tenantId);
+
+        // Role-Based Leave Distribution
+        if ($currentRole === 'employee') {
+            $empId = session('portal_employee_id', 1);
+            $query->where('employee_id', $empId);
+        } elseif ($currentRole === 'department_manager') {
+            $managerEmp = Employee::find(session('portal_employee_id', 2));
+            if ($managerEmp && $managerEmp->department_id) {
+                $query->whereHas('employee', function ($q) use ($managerEmp) {
+                    $q->where('department_id', $managerEmp->department_id);
+                });
+            }
+        }
+
+        $leaves = $query->latest()
             ->paginate(12);
 
         return view('leaves.index', compact('leaves'));

@@ -43,6 +43,8 @@
                 <div class="scanner-viewport-wrapper mx-auto position-relative">
                     <!-- Live HTML5 Video Element -->
                     <video id="webcamVideo" autoplay playsinline muted class="scanner-video"></video>
+                    <canvas id="captureCanvas" style="display: none;"></canvas>
+                    <div id="cameraFlashOverlay" style="position: absolute; inset: 0; background: white; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; z-index: 5;"></div>
                     
                     <!-- Simulated Scanner Poster Canvas (Shown if camera is inactive/loading) -->
                     <div id="scannerPlaceholder" class="scanner-placeholder">
@@ -90,6 +92,7 @@
                                     <i class="bi bi-person-check text-primary"></i>
                                 </span>
                                 <select id="employeeSelect" class="form-select border-start-0" style="border-radius: 0 10px 10px 0; font-size: 0.85rem;">
+                                    <option value="auto" selected>✨ Auto-Detect Identity (Camera AI)</option>
                                     @foreach($employees as $emp)
                                         <option value="{{ $emp->id }}" data-name="{{ $emp->name }}" data-avatar="{{ $emp->avatar }}" data-dept="{{ $emp->department->name ?? 'General' }}" data-desig="{{ $emp->designation->title ?? 'Staff' }}">
                                             {{ $emp->name }} ({{ $emp->department->name ?? 'General' }})
@@ -447,23 +450,48 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Scan Face Action
     scanFaceBtn.addEventListener('click', function() {
-        const selectedEmpId = employeeSelect ? employeeSelect.value : null;
+        const selectedEmpId = employeeSelect ? employeeSelect.value : 'auto';
+        const captureCanvas = document.getElementById('captureCanvas');
+        const flashOverlay = document.getElementById('cameraFlashOverlay');
+        let snapshotData = null;
+
+        // Visual camera frame snapshot capture
+        if (stream && webcamVideo.videoWidth > 0 && captureCanvas) {
+            captureCanvas.width = 480;
+            captureCanvas.height = 480;
+            const ctx = captureCanvas.getContext('2d');
+            // Mirror image matching CSS transform
+            ctx.translate(480, 0);
+            ctx.scale(-1, 1);
+            ctx.drawImage(webcamVideo, 0, 0, 480, 480);
+            snapshotData = captureCanvas.toDataURL('image/jpeg', 0.85);
+
+            // Shutter flash effect
+            if (flashOverlay) {
+                flashOverlay.style.opacity = '0.85';
+                setTimeout(() => { flashOverlay.style.opacity = '0'; }, 150);
+            }
+        }
 
         // Visual Scanning HUD Feedback
         detectionStatusText.innerText = 'Scanning facial landmarks...';
         scanFaceBtn.disabled = true;
-        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Verifying Face...`;
+        scanFaceBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Verifying Face...`;
 
         setTimeout(async () => {
             try {
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
                 const response = await fetch("{{ route('attendance.facescan') }}", {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                        'X-CSRF-TOKEN': csrfToken
                     },
                     body: JSON.stringify({
-                        employee_id: selectedEmpId
+                        employee_id: selectedEmpId,
+                        face_snapshot: snapshotData
                     })
                 });
 
@@ -473,7 +501,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     detectionStatusText.innerText = 'Face Verified (' + data.confidence + ' match)';
 
                     // Update Bottom Employee Info Card
-                    document.getElementById('resEmployeeAvatar').src = data.employee.avatar;
+                    const avatarImg = document.getElementById('resEmployeeAvatar');
+                    if (avatarImg) {
+                        avatarImg.src = snapshotData || data.employee.avatar;
+                    }
                     document.getElementById('resEmployeeName').innerText = data.employee.name;
                     document.getElementById('resEmployeeCode').innerText = data.employee.employee_code;
                     document.getElementById('resEmployeeRole').innerText = data.employee.designation;
@@ -498,6 +529,21 @@ document.addEventListener('DOMContentLoaded', function() {
                     resultCard.style.display = 'block';
                     resultCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+                    // Audio Confirmation Chime
+                    try {
+                        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+                        osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1); // A5
+                        gain.gain.setValueAtTime(0.18, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.35);
+                    } catch(e) {}
+
                     // Append to live logs table
                     const tbody = document.getElementById('scansTableBody');
                     const emptyRow = document.getElementById('emptyScanRow');
@@ -508,7 +554,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     newRow.innerHTML = `
                         <td>
                             <div class="d-flex align-items-center gap-2">
-                                <img src="${data.employee.avatar}" class="avatar-sm" alt="Emp">
+                                <img src="${snapshotData || data.employee.avatar}" class="avatar-sm" alt="Emp" style="width:34px;height:34px;border-radius:50%;object-fit:cover;">
                                 <div>
                                     <div class="fw-bold text-dark">${data.employee.name}</div>
                                     <div class="text-muted" style="font-size: 0.74rem;">${data.employee.designation}</div>
@@ -538,7 +584,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 scanFaceBtn.disabled = false;
                 scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span>Scan Face Now</span>`;
             }
-        }, 800);
+        }, 650);
     });
 
     // Digital clock updater

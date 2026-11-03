@@ -13,9 +13,23 @@ class EmployeeController extends Controller
     public function index(Request $request)
     {
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+        $currentRole = session('active_role', auth()->check() ? auth()->user()->role : 'hr_manager');
+
+        // Employee role doesn't manage directory - redirect to personal portal
+        if ($currentRole === 'employee') {
+            return redirect()->route('employee.dashboard')->with('info', 'Redirected to your Employee Portal.');
+        }
 
         $query = Employee::with(['department', 'designation'])
             ->where('tenant_id', $tenantId);
+
+        // Department Manager only manages their department members
+        if ($currentRole === 'department_manager') {
+            $managerEmp = Employee::find(session('portal_employee_id', 2));
+            if ($managerEmp && $managerEmp->department_id) {
+                $query->where('department_id', $managerEmp->department_id);
+            }
+        }
 
         // Status tab filter (active, on_leave, on_boarding, inactive)
         if ($request->filled('status') && $request->status !== 'all') {
