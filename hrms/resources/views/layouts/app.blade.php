@@ -400,7 +400,8 @@
     @stack('styles')
 </head>
 <body class="{{ auth()->check() ? 'authenticated-shell' : 'guest-shell' }}">
-    <div class="app-wrapper">
+    <div class="app-wrapper {{ request()->routeIs('login') || request()->routeIs('register') ? 'justify-content-center align-items-center' : '' }}">
+        @if(!request()->routeIs('login') && !request()->routeIs('register'))
         <!-- Sidebar matching Screenshot 1 (EasyTeam) -->
         <aside class="sidebar" id="sidebar">
             <div class="brand-box">
@@ -731,9 +732,11 @@
                 </ul>
             </div>
         </aside>
+        @endif
 
         <!-- Main Content Area -->
-        <main class="main-content">
+        <main class="{{ request()->routeIs('login') || request()->routeIs('register') ? 'w-100 min-vh-100 d-flex align-items-center justify-content-center p-3' : 'main-content' }}" style="{{ request()->routeIs('login') || request()->routeIs('register') ? 'margin-left: 0; max-width: 100vw; background: #fafafa;' : '' }}">
+            @if(!request()->routeIs('login') && !request()->routeIs('register'))
             <!-- Top Role Context Strip (SRS Section 6: Role Based Access & Testing Bar) -->
             <div class="role-context-strip d-flex align-items-center justify-content-between p-2 px-3 mb-4 rounded-3 bg-white border shadow-sm flex-wrap gap-2">
                 <div class="d-flex align-items-center gap-2">
@@ -806,6 +809,7 @@
                     @endauth
                 </div>
             </div>
+            @endif
             <!-- Toast / Alerts -->
             @if(session('success'))
                 <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-4 mb-4" role="alert">
