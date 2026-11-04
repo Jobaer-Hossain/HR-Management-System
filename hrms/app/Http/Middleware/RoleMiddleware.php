@@ -23,8 +23,8 @@ class RoleMiddleware
 
         $currentRole = auth()->user()->role;
 
-        // HR Manager / Admin has full administrative access to all modules
-        if ($currentRole === 'hr_manager' || $currentRole === 'admin' || $currentRole === 'super_admin' || $currentRole === 'owner') {
+        // Platform Super Admin / Owner has full administrative access to all modules
+        if ($currentRole === 'super_admin' || $currentRole === 'admin' || $currentRole === 'owner') {
             return $next($request);
         }
 

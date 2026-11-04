@@ -60,21 +60,21 @@
         </div>
         <div class="workspace-action-list">
             <a href="{{ route('attendance.mobile') }}" class="workspace-action primary">
-                <i class="bi bi-camera-video"></i> Attendance
+                <i class="bi bi-camera-video"></i> Attendance Punch
             </a>
             <a href="{{ route('leaves.apply') }}" class="workspace-action">
-                <i class="bi bi-calendar-plus"></i> Request leave
+                <i class="bi bi-calendar-plus"></i> Request Leave
             </a>
-            <a href="{{ route('schedule.index') }}" class="workspace-action">
-                <i class="bi bi-calendar-week"></i> My schedule
+            <a href="#shifts" class="workspace-action">
+                <i class="bi bi-calendar-week"></i> My Shifts
             </a>
-            <a href="{{ route('payrolls.index') }}" class="workspace-action">
-                <i class="bi bi-receipt"></i> Payslips
+            <a href="#payslips" class="workspace-action">
+                <i class="bi bi-receipt"></i> My Payslips
             </a>
         </div>
     </div>
 
-    <!-- Biometric Face Enrollment Status Card (Requested Feature) -->
+    <!-- Biometric Face Enrollment Status Card -->
     <div class="card card-custom p-4 mb-4 border-start border-4 {{ $employee->hasReliableFaceBiometric() ? 'border-success' : 'border-warning' }}">
         <div class="row align-items-center g-3">
             <div class="col-12 col-md-8">
@@ -87,7 +87,7 @@
                     </h5>
                     @if($employee->hasReliableFaceBiometric())
                         <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
-                            <i class="bi bi-check-circle-fill me-1"></i> Active in MySQL Database
+                            <i class="bi bi-check-circle-fill me-1"></i> Enrolled by Admin
                         </span>
                     @else
                         <span class="badge bg-warning-subtle text-warning border border-warning-subtle px-2 py-1 rounded-pill" style="font-size: 0.75rem;">
@@ -98,25 +98,38 @@
 
                 @if($employee->hasReliableFaceBiometric())
                     <p class="text-muted small mb-2">
-                        Your facial biometric profile is securely enrolled in the database. When you position your face before the attendance scanner, the system verifies your identity and logs your attendance.
+                        Your facial biometric profile is enrolled in the database. When you position your face before the attendance scanner, your identity is verified and attendance is logged.
                     </p>
                     <div class="d-flex align-items-center gap-3 text-secondary small flex-wrap">
                         <span><strong>Biometric ID:</strong> <code>{{ $employee->face_biometric_id ?? 'BIO-FACE-' . $employee->id }}</code></span>
-                        <span><strong>Enrolled:</strong> {{ $employee->face_enrolled_at ? $employee->face_enrolled_at->format('d M Y, h:i A') : 'Pre-enrolled' }}</span>
+                        <span><strong>Enrolled:</strong> {{ $employee->face_enrolled_at ? $employee->face_enrolled_at->format('d M Y, h:i A') : 'Enrolled' }}</span>
                         <span><strong>Status:</strong> <span class="text-success fw-bold"><i class="bi bi-shield-check"></i> Active & Verified</span></span>
                     </div>
                 @else
-                    <p class="text-muted small mb-2">
-                        No facial biometrics have been enrolled for this account yet. Enroll your face below so the AI attendance terminal can verify your identity.
+                    <p class="text-muted small mb-0">
+                        Your facial biometrics have not been enrolled yet. Please contact <strong>HR Administration</strong> to take your facial photo in the Employee Directory before you can clock attendance.
                     </p>
                 @endif
             </div>
 
             <div class="col-12 col-md-4 text-md-end">
-                <button type="button" class="btn btn-primary fw-bold px-3 py-2 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#faceEnrollModal" style="border-radius: 10px; font-size: 0.88rem;">
-                    <i class="bi bi-camera"></i>
-                    <span>{{ $employee->hasReliableFaceBiometric() ? 'Update / Re-Enroll Face' : 'Enroll My Face Now' }}</span>
-                </button>
+                @if(auth()->user()?->isHrManager() || auth()->user()?->role === 'super_admin')
+                    <button type="button" class="btn btn-primary fw-bold px-3 py-2 d-inline-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#faceEnrollModal" style="border-radius: 10px; font-size: 0.88rem;">
+                        <i class="bi bi-camera"></i>
+                        <span>{{ $employee->hasReliableFaceBiometric() ? 'Update Face (Admin)' : 'Enroll Face (Admin)' }}</span>
+                    </button>
+                @else
+                    @if($employee->hasReliableFaceBiometric())
+                        <a href="{{ route('attendance.mobile') }}" class="btn btn-dark fw-bold px-3 py-2 d-inline-flex align-items-center gap-2" style="border-radius: 10px; font-size: 0.88rem;">
+                            <i class="bi bi-fingerprint"></i>
+                            <span>Punch Attendance Now</span>
+                        </a>
+                    @else
+                        <span class="badge bg-light text-secondary border px-3 py-2" style="font-size: 0.8rem;">
+                            <i class="bi bi-shield-lock me-1"></i> Requires Admin Enrollment
+                        </span>
+                    @endif
+                @endif
             </div>
         </div>
     </div>
@@ -189,7 +202,11 @@
 
                 <div class="mt-3 pt-3 border-top d-flex justify-content-between align-items-center small text-muted">
                     <span>Bangladesh Labor Act 2006 Statutory Entitlement</span>
-                    <a href="{{ route('leaves.calendar') }}" class="text-decoration-none fw-semibold">View Leave Calendar &rarr;</a>
+                    @if(auth()->user()?->isEmployee())
+                        <a href="{{ route('leaves.apply') }}" class="text-decoration-none fw-semibold"><i class="bi bi-plus-circle me-1"></i>Apply for Leave &rarr;</a>
+                    @else
+                        <a href="{{ route('leaves.calendar') }}" class="text-decoration-none fw-semibold">View Leave Calendar &rarr;</a>
+                    @endif
                 </div>
             </div>
         </div>
@@ -198,11 +215,15 @@
     <!-- Shifts & Payslips Row -->
     <div class="row g-4 mb-4">
         <!-- Upcoming Shifts (Agendrix Match) -->
-        <div class="col-12 col-lg-6">
+        <div class="col-12 col-lg-6" id="shifts">
             <div class="card card-custom p-4 h-100">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <h5 class="fw-bold mb-0 text-slate-900" style="font-size: 1.05rem;">My Weekly Shift Schedule</h5>
-                    <a href="{{ route('schedule.index') }}" class="text-decoration-none small fw-semibold">Full Schedule &rarr;</a>
+                    @if(!auth()->user()?->isEmployee())
+                        <a href="{{ route('schedule.index') }}" class="text-decoration-none small fw-semibold">Shift Planner &rarr;</a>
+                    @else
+                        <span class="badge bg-light text-secondary border">This Week</span>
+                    @endif
                 </div>
 
                 <div class="d-flex flex-column gap-2">
@@ -227,7 +248,7 @@
         </div>
 
         <!-- Recent Payslips & Compensation -->
-        <div class="col-12 col-lg-6">
+        <div class="col-12 col-lg-6" id="payslips">
             <div class="card card-custom p-4 h-100">
                 <div class="d-flex align-items-center justify-content-between mb-3">
                     <h5 class="fw-bold mb-0 text-slate-900" style="font-size: 1.05rem;">Recent Payslips</h5>

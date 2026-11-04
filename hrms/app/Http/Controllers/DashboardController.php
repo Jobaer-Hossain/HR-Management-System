@@ -16,16 +16,17 @@ class DashboardController extends Controller
         // Role-Based Dashboard Routing
         $activeRole = auth()->user()->role;
 
+        // Regular employee ALWAYS sees personal self-service portal, never executive HR numbers
+        if ($activeRole === 'employee') {
+            return app(EmployeeDashboardController::class)->index($request);
+        }
+
         if ($activeRole === 'department_manager' && !$request->has('force_admin')) {
             return app(ManagerDashboardController::class)->index($request);
         }
 
         if ($activeRole === 'finance' && !$request->has('force_admin')) {
             return app(PayrollDashboardController::class)->index($request);
-        }
-
-        if ($activeRole === 'employee' && !$request->has('force_admin')) {
-            return app(EmployeeDashboardController::class)->index($request);
         }
 
         // 1. HR Manager / Executive Dashboard (Screenshot 1 EasyTeam: 128 total, 121 active, 7 inactive, 5 leaves)

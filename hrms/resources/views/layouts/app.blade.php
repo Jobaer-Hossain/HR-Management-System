@@ -603,10 +603,6 @@
                     <i class="bi bi-grid-fill"></i>
                     <span>Employee Dashboard</span>
                 </a>
-                <a href="{{ route('employee.dashboard') }}#biometrics" class="nav-link-custom">
-                    <i class="bi bi-shield-check text-success"></i>
-                    <span>Face Enrollment</span>
-                </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
                     <i class="bi bi-person-check"></i>
                     <span>Self Check In/Out</span>
@@ -615,13 +611,13 @@
                     <i class="bi bi-send-plus"></i>
                     <span>Apply for Leave</span>
                 </a>
-                <a href="{{ route('leaves.calendar') }}" class="nav-link-custom {{ request()->routeIs('leaves.calendar') ? 'active' : '' }}">
-                    <i class="bi bi-calendar3-range"></i>
-                    <span>Holiday & Leave View</span>
-                </a>
-                <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
+                <a href="{{ route('employee.dashboard') }}#shifts" class="nav-link-custom">
                     <i class="bi bi-calendar-week"></i>
                     <span>My Work Shifts</span>
+                </a>
+                <a href="{{ route('employee.dashboard') }}#payslips" class="nav-link-custom">
+                    <i class="bi bi-credit-card"></i>
+                    <span>My Payslips</span>
                 </a>
 
             @else

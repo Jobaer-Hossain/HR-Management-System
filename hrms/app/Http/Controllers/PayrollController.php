@@ -157,6 +157,14 @@ class PayrollController extends Controller
     public function payslip($id)
     {
         $item = PayrollItem::with(['employee.department', 'employee.designation', 'run'])->findOrFail($id);
+
+        if (auth()->user()?->isEmployee()) {
+            $userEmail = auth()->user()->email;
+            $userEmpId = auth()->user()->employee_id;
+            $isOwn = ((int)$item->employee_id === (int)$userEmpId) || ($item->employee && $item->employee->email === $userEmail);
+            abort_unless($isOwn, 403, 'Unauthorized: You can only view your own payslip voucher.');
+        }
+
         return view('payrolls.payslip', compact('item'));
     }
 }

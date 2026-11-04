@@ -136,7 +136,17 @@ class LeaveController extends Controller
     public function apply()
     {
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
-        $employees = Employee::where('tenant_id', $tenantId)->where('status', '!=', 'inactive')->get();
+
+        if (auth()->user()?->isEmployee()) {
+            $employees = Employee::where('tenant_id', $tenantId)
+                ->where(function($q) {
+                    $q->where('id', auth()->user()->employee_id)
+                      ->orWhere('email', auth()->user()->email);
+                })->get();
+        } else {
+            $employees = Employee::where('tenant_id', $tenantId)->where('status', '!=', 'inactive')->get();
+        }
+
         $leaveTypes = LeaveType::where('tenant_id', $tenantId)->get();
 
         return view('leaves.apply', compact('employees', 'leaveTypes'));
@@ -145,6 +155,20 @@ class LeaveController extends Controller
     public function store(Request $request)
     {
         $tenantId = session('current_tenant_id') ?? session('active_tenant_id') ?? 1;
+
+        // If employee, force submission for their own employee profile
+        if (auth()->user()?->isEmployee()) {
+            $ownEmp = Employee::where('tenant_id', $tenantId)
+                ->where(function($q) {
+                    $q->where('id', auth()->user()->employee_id)
+                      ->orWhere('email', auth()->user()->email);
+                })->first();
+            $targetEmpId = $ownEmp ? $ownEmp->id : $request->input('employee_id');
+        } else {
+            $targetEmpId = $request->input('employee_id') ?? $request->input('emp_id');
+        }
+
+        $request->merge(['employee_id' => $targetEmpId]);
 
         $validated = $request->validate([
             'employee_id' => 'required|exists:employees,id',
@@ -160,12 +184,28 @@ class LeaveController extends Controller
 
         LeaveApplication::create($validated);
 
+        if (auth()->user()?->isEmployee()) {
+            return redirect()->route('employee.dashboard')->with('success', 'Your leave request has been submitted successfully.');
+        }
+
         return redirect()->route('leaves.index')->with('success', 'Leave request submitted successfully.');
     }
 
     public function approve($id)
     {
-        $leave = LeaveApplication::findOrFail($id);
+        $leave = LeaveApplication::with('employee')->findOrFail($id);
+
+        if (auth()->user()?->role === 'department_manager') {
+            $managerEmp = Employee::where('tenant_id', $leave->tenant_id)
+                ->where(function($q) {
+                    $q->where('id', auth()->user()->employee_id)
+                      ->orWhere('email', auth()->user()->email);
+                })->first();
+            if ($managerEmp && $managerEmp->department_id && $leave->employee) {
+                abort_unless((int)$managerEmp->department_id === (int)$leave->employee->department_id, 403, 'Unauthorized: You can only approve leave for employees in your department.');
+            }
+        }
+
         $leave->status = 'approved';
         $leave->save();
 
@@ -174,7 +214,19 @@ class LeaveController extends Controller
 
     public function reject($id)
     {
-        $leave = LeaveApplication::findOrFail($id);
+        $leave = LeaveApplication::with('employee')->findOrFail($id);
+
+        if (auth()->user()?->role === 'department_manager') {
+            $managerEmp = Employee::where('tenant_id', $leave->tenant_id)
+                ->where(function($q) {
+                    $q->where('id', auth()->user()->employee_id)
+                      ->orWhere('email', auth()->user()->email);
+                })->first();
+            if ($managerEmp && $managerEmp->department_id && $leave->employee) {
+                abort_unless((int)$managerEmp->department_id === (int)$leave->employee->department_id, 403, 'Unauthorized: You can only reject leave for employees in your department.');
+            }
+        }
+
         $leave->status = 'rejected';
         $leave->save();
 
