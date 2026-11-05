@@ -231,26 +231,45 @@ class AttendanceController extends Controller
             $action = 'checked_in';
             $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
         } elseif ($requestedPunchType === 'check_out') {
-            // Explicit Check Out requested
-            $checkOutCheck = $policy->canCheckOut($currentTime);
-            if (!$checkOutCheck['allowed']) {
+            // Explicit Check Out requested - Immediately record checkout
+            if (!$attendance || !$attendance->check_in) {
                 return response()->json([
                     'success' => false,
-                    'message' => $checkOutCheck['message']
+                    'message' => 'Check-in is required before checking out.'
                 ], 422);
             }
 
-            $attendance->check_out = $currentTime;
-            if ($attendance->check_in) {
-                $startTs = strtotime($attendance->check_in);
-                $endTs = strtotime($currentTime);
-                $diffMinutes = max(1, round(($endTs - $startTs) / 60));
-                $attendance->worked_minutes = $diffMinutes;
+            if ($attendance->check_out) {
+                return response()->json([
+                    'success' => true,
+                    'action' => 'already_checked_out',
+                    'message' => "{$employee->name} is already checked out today at " . date('h:i A', strtotime($attendance->check_out)),
+                    'attendance' => [
+                        'date' => date('d M, Y', strtotime($attendance->attendance_date)),
+                        'time' => date('h:i A', strtotime($currentTime)),
+                        'check_in' => date('h:i A', strtotime($attendance->check_in)),
+                        'check_out' => date('h:i A', strtotime($attendance->check_out)),
+                        'worked_hours' => round($attendance->worked_minutes / 60, 1) . ' hrs',
+                        'location' => $attendance->location_note ?? 'HQ Gate',
+                    ],
+                    'employee' => [
+                        'id' => $employee->id,
+                        'name' => $employee->name,
+                        'email' => $employee->email,
+                    ]
+                ]);
             }
+
+            $attendance->check_out = $currentTime;
+            $startTs = strtotime($attendance->check_in);
+            $endTs = strtotime($currentTime);
+            $diffMinutes = max(1, round(($endTs - $startTs) / 60));
+            $attendance->worked_minutes = $diffMinutes;
             $attendance->source = 'facial_recognition';
             $attendance->save();
+
             $action = 'checked_out';
-            $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked OUT at " . $displayCurrentTime;
+            $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked OUT at " . $displayCurrentTime . ". Have a great evening!";
         } else {
             // Automatic punch evaluation:
             // If already checked in today and already checked out:
@@ -258,20 +277,18 @@ class AttendanceController extends Controller
                 $action = 'already_checked_out';
                 $message = "Attendance already completed today for {$employee->name} (In: " . date('h:i A', strtotime($attendance->check_in)) . ", Out: " . date('h:i A', strtotime($attendance->check_out)) . ").";
             } elseif ($attendance->check_in && !$attendance->check_out) {
-                // If it's before the configured checkout window (e.g. morning/mid-day):
-                // Do NOT check out! Reassure employee that morning attendance is already recorded.
-                $checkoutStartTs = strtotime($policy->check_out_start);
+                // If scanned within 5 minutes of check-in: prevent accidental double-tap
+                $startTs = strtotime($attendance->check_in);
                 $nowTs = strtotime($currentTime);
+                $diffMinutes = round(($nowTs - $startTs) / 60);
 
-                if ($nowTs < $checkoutStartTs) {
+                if ($diffMinutes < 5 && $nowTs < strtotime($policy->check_out_start)) {
                     $action = 'already_checked_in';
                     $message = "Morning attendance already recorded for {$employee->name} at " . date('h:i A', strtotime($attendance->check_in)) . ". Have a productive workday!";
                 } else {
-                    // Afternoon / Shift end reached: record checkout
+                    // Afternoon / Shift end reached or checkout scan: record checkout
                     $attendance->check_out = $currentTime;
-                    $startTs = strtotime($attendance->check_in);
-                    $endTs = strtotime($currentTime);
-                    $diffMinutes = max(1, round(($endTs - $startTs) / 60));
+                    $diffMinutes = max(1, round(($nowTs - $startTs) / 60));
                     $attendance->worked_minutes = $diffMinutes;
                     $attendance->source = 'facial_recognition';
                     $attendance->save();
@@ -381,15 +398,9 @@ class AttendanceController extends Controller
             return redirect()->back()->with('info', 'You have already checked out today at ' . date('h:i A', strtotime($attendance->check_out)) . '.');
         }
 
-        $policy = \App\Models\AttendancePolicy::forTenant($tenantId);
         $currentTime = date('H:i:s');
-        $check = $policy->canCheckOut($currentTime);
-        if (!$check['allowed']) {
-            return redirect()->back()->with('error', $check['message']);
-        }
-
         $attendance->check_out = $currentTime;
-        $attendance->worked_minutes = max(0, round((strtotime($attendance->check_out) - strtotime($attendance->check_in)) / 60));
+        $attendance->worked_minutes = max(1, round((strtotime($attendance->check_out) - strtotime($attendance->check_in)) / 60));
         $attendance->save();
 
         return redirect()->back()->with('success', 'Checked Out successfully at ' . date('h:i A') . '. Have a great evening!');
@@ -430,11 +441,21 @@ class AttendanceController extends Controller
     {
         $query = Employee::with(['department', 'designation'])->where('tenant_id', $tenantId);
 
-        if (auth()->user()?->isEmployee()) {
-            return $query->whereKey(auth()->user()->employee_id)->first()
-                ?? $query->where('email', auth()->user()->email)->first();
+        if ($requestedId && !auth()->user()?->isEmployee()) {
+            $emp = $query->find($requestedId);
+            if ($emp) return $emp;
         }
 
-        return $requestedId ? $query->find($requestedId) : $query->first();
+        if (auth()->user()?->employee_id) {
+            $emp = $query->find(auth()->user()->employee_id);
+            if ($emp) return $emp;
+        }
+
+        if (auth()->user()?->email) {
+            $emp = $query->where('email', auth()->user()->email)->first();
+            if ($emp) return $emp;
+        }
+
+        return $query->first();
     }
 }

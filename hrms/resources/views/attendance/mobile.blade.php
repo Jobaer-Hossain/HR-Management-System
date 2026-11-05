@@ -57,6 +57,30 @@
         </div>
     </div>
 
+    @if(session('success'))
+        <div class="alert alert-success alert-dismissible fade show rounded-3 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-check-circle-fill fs-5 text-success"></i>
+            <div>{{ session('success') }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(session('info'))
+        <div class="alert alert-info alert-dismissible fade show rounded-3 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-info-circle-fill fs-5 text-info"></i>
+            <div>{{ session('info') }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show rounded-3 shadow-sm d-flex align-items-center gap-2 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+            <div>{{ session('error') }}</div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    @endif
+
     <!-- Main Responsive Card Container (Numla Prototype 2 Clean Web & Mobile Layout) -->
     <div class="row g-4 justify-content-center">
         <!-- Punch Clock & Scanner Card -->
@@ -166,6 +190,31 @@
                                 </span>
                             </div>
                         </button>
+                    </div>
+
+                    <!-- Direct Check In / Out 1-Click Action Form -->
+                    <div class="mt-3 d-flex justify-content-center gap-2">
+                        @if($todayAttendance && $todayAttendance->check_in && !$todayAttendance->check_out)
+                            <form action="{{ route('attendance.checkout') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="employee_id" value="{{ $employee->id }}">
+                                <button type="submit" class="btn btn-danger btn-sm fw-bold px-3 py-1 shadow-sm" style="border-radius: 8px; font-size: 0.8rem;">
+                                    <i class="bi bi-box-arrow-right me-1"></i> Direct Check Out (1-Click)
+                                </button>
+                            </form>
+                        @elseif(!$todayAttendance || !$todayAttendance->check_in)
+                            <form action="{{ route('attendance.checkin') }}" method="POST">
+                                @csrf
+                                <input type="hidden" name="employee_id" value="{{ $employee->id }}">
+                                <button type="submit" class="btn btn-primary btn-sm fw-bold px-3 py-1 shadow-sm" style="border-radius: 8px; font-size: 0.8rem;">
+                                    <i class="bi bi-box-arrow-in-right me-1"></i> Direct Check In (1-Click)
+                                </button>
+                            </form>
+                        @else
+                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 rounded-pill small">
+                                <i class="bi bi-check-all me-1"></i> Full Day Attendance Completed
+                            </span>
+                        @endif
                     </div>
 
                     <!-- Geofence Distance Indicator (Numla Prototype 2) -->

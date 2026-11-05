@@ -123,16 +123,32 @@
                             </div>
                         </div>
 
+                        <div class="col-12 col-md-5">
+                            <label class="form-label small fw-bold text-dark mb-1">Select Punch Mode:</label>
+                            <div class="btn-group w-100" role="group" id="gatePunchModeGroup">
+                                <input type="radio" class="btn-check" name="gatePunchMode" id="modeAuto" value="auto" checked autocomplete="off">
+                                <label class="btn btn-outline-secondary btn-sm fw-semibold" for="modeAuto">Auto</label>
+
+                                <input type="radio" class="btn-check" name="gatePunchMode" id="modeCheckIn" value="check_in" autocomplete="off">
+                                <label class="btn btn-outline-success btn-sm fw-semibold" for="modeCheckIn"><i class="bi bi-box-arrow-in-right"></i> Check In</label>
+
+                                <input type="radio" class="btn-check" name="gatePunchMode" id="modeCheckOut" value="check_out" autocomplete="off">
+                                <label class="btn btn-outline-danger btn-sm fw-semibold" for="modeCheckOut"><i class="bi bi-box-arrow-right"></i> Check Out</label>
+                            </div>
+                        </div>
+
                         <div class="col-6 col-md-3">
-                            <button type="button" id="startCamBtn" class="btn btn-outline-secondary w-100 fw-semibold" style="border-radius: 10px; font-size: 0.85rem;">
+                            <label class="form-label small fw-bold text-dark mb-1 d-none d-md-block">&nbsp;</label>
+                            <button type="button" id="startCamBtn" class="btn btn-outline-secondary w-100 fw-semibold" style="border-radius: 10px; font-size: 0.85rem; height: 38px;">
                                 <i class="bi bi-camera me-1"></i> <span id="camBtnText">Start Camera</span>
                             </button>
                         </div>
 
                         <div class="col-6 col-md-4">
-                            <button type="button" id="scanFaceBtn" class="btn btn-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-2" style="border-radius: 10px; font-size: 0.88rem; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
+                            <label class="form-label small fw-bold text-dark mb-1 d-none d-md-block">&nbsp;</label>
+                            <button type="button" id="scanFaceBtn" class="btn btn-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-2" style="border-radius: 10px; font-size: 0.88rem; height: 38px; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
                                 <i class="bi bi-scan"></i>
-                                <span>Scan Face Now</span>
+                                <span id="scanBtnLabel">Scan Face Now</span>
                             </button>
                         </div>
                         <div class="col-12">
@@ -596,6 +612,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const csrfMeta = document.querySelector('meta[name="csrf-token"]');
             const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
 
+            const selectedMode = document.querySelector('input[name="gatePunchMode"]:checked')?.value || 'auto';
+            const punchType = selectedMode === 'auto' ? (isAutomatic ? 'auto_check_in' : 'auto') : selectedMode;
+
             const response = await fetch("{{ route('attendance.facescan') }}", {
                 method: 'POST',
                 headers: {
@@ -605,7 +624,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify({
                     employee_id: selectedEmpId,
                     face_frames: faceFrames,
-                    punch_type: isAutomatic ? 'auto_check_in' : 'auto'
+                    punch_type: punchType
                 })
             });
 
@@ -721,10 +740,28 @@ document.addEventListener('DOMContentLoaded', function() {
             detectionStatusText.innerText = 'Scanner Connection Error';
         } finally {
             scanFaceBtn.disabled = false;
-            scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span>Scan Face Now</span>`;
+            updateScanBtnUI();
             autoScanBusy = false;
         }
     }
+
+    function updateScanBtnUI() {
+        const mode = document.querySelector('input[name="gatePunchMode"]:checked')?.value || 'auto';
+        if (mode === 'check_out') {
+            scanFaceBtn.className = 'btn btn-danger w-100 fw-bold d-flex align-items-center justify-content-center gap-2';
+            scanFaceBtn.innerHTML = `<i class="bi bi-box-arrow-right"></i> <span id="scanBtnLabel">Check Out Face Scan</span>`;
+        } else if (mode === 'check_in') {
+            scanFaceBtn.className = 'btn btn-success w-100 fw-bold d-flex align-items-center justify-content-center gap-2';
+            scanFaceBtn.innerHTML = `<i class="bi bi-box-arrow-in-right"></i> <span id="scanBtnLabel">Check In Face Scan</span>`;
+        } else {
+            scanFaceBtn.className = 'btn btn-primary w-100 fw-bold d-flex align-items-center justify-content-center gap-2';
+            scanFaceBtn.innerHTML = `<i class="bi bi-scan"></i> <span id="scanBtnLabel">Scan Face Now</span>`;
+        }
+    }
+
+    document.querySelectorAll('input[name="gatePunchMode"]').forEach(radio => {
+        radio.addEventListener('change', updateScanBtnUI);
+    });
 
     scanFaceBtn.addEventListener('click', () => scanFaceNow(false));
 
