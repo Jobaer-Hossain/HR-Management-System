@@ -87,11 +87,32 @@
                     </div>
                     <span>Pending Approvals</span>
                 </div>
-                <div class="fw-bold text-dark fs-3 mb-1">{{ $pendingTeamLeavesCount }} <small class="text-muted fs-6 fw-normal">Requests</small></div>
-                <div class="small text-danger fw-semibold">Action Required</div>
+                <div class="fw-bold text-dark fs-3 mb-1">{{ $pendingTeamLeavesCount + $pendingManualAttendanceCount }} <small class="text-muted fs-6 fw-normal">Items</small></div>
+                <div class="small text-danger fw-semibold">
+                    <a href="{{ route('attendance.manual.manage', ['status' => 'pending']) }}" class="text-danger text-decoration-none">
+                        {{ $pendingManualAttendanceCount }} Manual Att.
+                    </a> &bull; {{ $pendingTeamLeavesCount }} Leaves
+                </div>
             </div>
         </div>
     </div>
+
+    @if($pendingManualAttendanceCount > 0)
+        <div class="alert alert-warning border-0 rounded-4 shadow-sm p-3 mb-4 d-flex align-items-center justify-content-between flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <div style="width: 38px; height: 38px; background: #fef3c7; color: #b45309; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">
+                    <i class="bi bi-person-exclamation"></i>
+                </div>
+                <div>
+                    <div class="fw-bold text-dark">{{ $pendingManualAttendanceCount }} Employee Manual Attendance Request(s) Awaiting Your Review</div>
+                    <div class="text-muted small">Employees submitted manual punches due to facial camera issues or arriving after cutoff.</div>
+                </div>
+            </div>
+            <a href="{{ route('attendance.manual.manage', ['status' => 'pending']) }}" class="btn btn-warning fw-bold text-dark btn-sm px-3 py-2" style="border-radius: 8px;">
+                <i class="bi bi-check-circle me-1"></i> Review & Approve Now
+            </a>
+        </div>
+    @endif
 
     <!-- Main Two-Column Grid: Team Leaves & Today's Attendance -->
     <div class="row g-4 mb-4">

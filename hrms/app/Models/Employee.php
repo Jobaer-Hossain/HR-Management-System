@@ -88,4 +88,9 @@ class Employee extends Model
     {
         return $this->hasMany(PayrollItem::class);
     }
+
+    public function manualAttendanceRequests()
+    {
+        return $this->hasMany(ManualAttendanceRequest::class);
+    }
 }

@@ -8,11 +8,16 @@
             <h2 class="fw-bold mb-1" style="font-size: 1.6rem; letter-spacing: -0.5px;">Check In / Check Out</h2>
             <p class="text-muted mb-0" style="font-size: 0.88rem;">Biometric & Geofenced Time Tracking (Numla System)</p>
         </div>
-        <div class="d-flex align-items-center gap-2">
-            <a href="{{ route('attendance.index') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
-                <i class="bi bi-fingerprint me-1"></i> Fingerprint Biometric
+        <div class="d-flex align-items-center gap-2 flex-wrap">
+            <a href="{{ route('attendance.manual.manage') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.88rem;">
+                <i class="bi bi-shield-check me-1"></i> Manual Approvals
             </a>
-            <a href="{{ route('attendance.face') }}" class="btn btn-outline-primary fw-semibold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
+            @if(in_array(auth()->user()?->role, ['hr_manager', 'super_admin', 'admin']))
+                <a href="{{ route('attendance.policy.edit') }}" class="btn btn-outline-secondary fw-semibold px-3 py-2 bg-white" style="border-radius: 10px; font-size: 0.88rem;">
+                    <i class="bi bi-sliders me-1"></i> Cutoff Rules
+                </a>
+            @endif
+            <a href="{{ route('attendance.face') }}" class="btn btn-primary fw-bold px-3 py-2" style="border-radius: 10px; font-size: 0.88rem;">
                 <i class="bi bi-camera-video me-1"></i> Facial AI Scanner
             </a>
         </div>

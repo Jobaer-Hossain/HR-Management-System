@@ -59,6 +59,11 @@ class ManagerDashboardController extends Controller
             ->where('status', 'pending')
             ->count();
 
+        $pendingManualAttendanceCount = \App\Models\ManualAttendanceRequest::where('tenant_id', $tenant->id)
+            ->whereIn('employee_id', $teamMemberIds)
+            ->where('status', 'pending')
+            ->count();
+
         // 2. Pending & Recent Team Leave Applications
         $teamLeaves = LeaveApplication::with(['employee.designation', 'leaveType'])
             ->where('tenant_id', $tenant->id)
@@ -92,6 +97,7 @@ class ManagerDashboardController extends Controller
             'presentToday',
             'onLeaveToday',
             'pendingTeamLeavesCount',
+            'pendingManualAttendanceCount',
             'teamLeaves',
             'teamShifts',
             'todayAttendances',

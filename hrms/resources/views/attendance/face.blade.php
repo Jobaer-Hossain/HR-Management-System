@@ -631,7 +631,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 document.getElementById('punchLocationText').innerText = data.attendance.location;
 
                 const actionBadge = document.getElementById('punchActionBadge');
-                if (data.action === 'checked_out') {
+                if (data.action === 'already_checked_in') {
+                    actionBadge.className = 'punch-action-pill bg-primary text-white';
+                    actionBadge.innerHTML = `<i class="bi bi-info-circle me-1"></i> ALREADY CHECKED IN`;
+                    resultCard.style.borderLeftColor = '#2563eb';
+                } else if (data.action === 'already_checked_out') {
+                    actionBadge.className = 'punch-action-pill bg-secondary text-white';
+                    actionBadge.innerHTML = `<i class="bi bi-check-all me-1"></i> ATTENDANCE COMPLETE`;
+                    resultCard.style.borderLeftColor = '#64748b';
+                } else if (data.action === 'checked_out') {
                     actionBadge.className = 'punch-action-pill punch-action-checkout';
                     actionBadge.innerHTML = `<i class="bi bi-box-arrow-right me-1"></i> CHECKED OUT`;
                     resultCard.style.borderLeftColor = '#e11d48';
@@ -692,11 +700,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 tbody.insertBefore(newRow, tbody.firstChild);
 
             } else {
-                detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i> Verification Failed</span>`;
-                if (!isAutomatic) {
-                    alert(data.message || 'Face verification failed: Identity mismatch.');
+                if (data.can_request_manual) {
+                    detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-clock-history me-1"></i> ${data.message}</span> <a href="${data.manual_request_url || '{{ route('attendance.manual.create') }}'}" class="btn btn-warning btn-sm text-dark fw-bold ms-2 py-0 px-2" style="font-size:0.75rem;"><i class="bi bi-pencil-square"></i> Request Manual Attendance</a>`;
+                    if (!isAutomatic) {
+                        if (confirm(data.message + '\n\nWould you like to open the Manual Attendance Request form now?')) {
+                            window.location.href = data.manual_request_url || "{{ route('attendance.manual.create') }}";
+                        }
+                    }
                 } else {
-                    detectionStatusText.innerHTML = `<span class="text-warning"><i class="bi bi-hourglass-split me-1"></i> Waiting for a verified live face...</span>`;
+                    detectionStatusText.innerHTML = `<span class="text-danger fw-bold"><i class="bi bi-shield-x me-1"></i> ${data.message || 'Verification Failed'}</span>`;
+                    if (!isAutomatic) {
+                        alert(data.message || 'Face verification failed: Identity mismatch.');
+                    } else {
+                        detectionStatusText.innerHTML = `<span class="text-warning"><i class="bi bi-hourglass-split me-1"></i> Waiting for a verified live face...</span>`;
+                    }
                 }
             }
         } catch (err) {

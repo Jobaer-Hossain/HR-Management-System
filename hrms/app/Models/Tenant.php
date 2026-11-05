@@ -49,4 +49,14 @@ class Tenant extends Model
     {
         return $this->hasMany(PayrollRun::class);
     }
+
+    public function attendancePolicy()
+    {
+        return $this->hasOne(AttendancePolicy::class);
+    }
+
+    public function manualAttendanceRequests()
+    {
+        return $this->hasMany(ManualAttendanceRequest::class);
+    }
 }

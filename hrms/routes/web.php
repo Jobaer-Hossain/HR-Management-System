@@ -12,6 +12,8 @@ use App\Http\Controllers\ManagerDashboardController;
 use App\Http\Controllers\PayrollDashboardController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\RolePermissionController;
+use App\Http\Controllers\ManualAttendanceController;
+use App\Http\Controllers\AttendancePolicyController;
 
 // Default Landing / Redirect
 Route::get('/', function () {
@@ -110,13 +112,26 @@ Route::middleware('auth')->group(function () {
         Route::post('/check-out', [AttendanceController::class, 'checkOut'])->middleware('permission:attendance.self')->name('attendance.checkout');
         Route::post('/break', [AttendanceController::class, 'toggleBreak'])->middleware('permission:attendance.self')->name('attendance.break');
 
+        // Personal Manual Attendance Request (Fallback when facial recognition fails or after cutoff)
+        Route::get('/manual-request', [ManualAttendanceController::class, 'create'])->middleware('permission:attendance.self')->name('attendance.manual.create');
+        Route::post('/manual-request', [ManualAttendanceController::class, 'store'])->middleware('permission:attendance.self')->name('attendance.manual.store');
+
         // Biometric Face Scan API endpoint
         Route::post('/face-scan', [AttendanceController::class, 'processFaceScan'])->middleware('throttle:10,1')->name('attendance.facescan');
 
-        // Company-Wide Attendance Log & Gate Scanner Kiosk - Restricted to Managers and HR Admin
+        // Branch / Department Manager & HR Admin Approval & Attendance Log
         Route::middleware(['role:department_manager,hr_manager,super_admin,admin', 'permission:attendance.view'])->group(function () {
             Route::get('/', [AttendanceController::class, 'index'])->name('attendance.index');
             Route::get('/face', [AttendanceController::class, 'faceScanner'])->middleware('permission:attendance.face')->name('attendance.face');
+            Route::get('/manual-approvals', [ManualAttendanceController::class, 'manage'])->name('attendance.manual.manage');
+            Route::post('/manual-approvals/{id}/approve', [ManualAttendanceController::class, 'approve'])->name('attendance.manual.approve');
+            Route::post('/manual-approvals/{id}/reject', [ManualAttendanceController::class, 'reject'])->name('attendance.manual.reject');
+        });
+
+        // Attendance Policy & Timing Cutoffs Settings - Restricted to HR Admin and Super Admin
+        Route::middleware(['role:hr_manager,super_admin,admin', 'permission:attendance.view'])->group(function () {
+            Route::get('/policy', [AttendancePolicyController::class, 'edit'])->name('attendance.policy.edit');
+            Route::post('/policy', [AttendancePolicyController::class, 'update'])->name('attendance.policy.update');
         });
     });
     Route::get('/mobile/attendance', [AttendanceController::class, 'mobileAttendance'])->middleware('permission:attendance.self');

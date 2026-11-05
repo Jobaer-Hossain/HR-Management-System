@@ -187,6 +187,8 @@ class AttendanceController extends Controller
         $currentTime = date('H:i:s');
         $displayCurrentTime = date('h:i A');
 
+        $policy = \App\Models\AttendancePolicy::forTenant($tenantId);
+
         $attendance = Attendance::where('tenant_id', $tenantId)
             ->where('employee_id', $employee->id)
             ->where('attendance_date', $today)
@@ -194,48 +196,50 @@ class AttendanceController extends Controller
 
         $locationNote = $validated['location_note'] ?? 'Facial Terminal Gate 01 - Verified HQ';
 
-        if (!$attendance) {
+        if (!$attendance || !$attendance->check_in) {
+            // Cutoff validation for morning Check In
+            $checkInCheck = $policy->canCheckIn($currentTime);
+            if (!$checkInCheck['allowed']) {
+                return response()->json([
+                    'success' => false,
+                    'cutoff_exceeded' => true,
+                    'message' => $checkInCheck['message'],
+                    'can_request_manual' => true,
+                    'manual_request_url' => route('attendance.manual.create'),
+                    'employee' => [
+                        'name' => $employee->name,
+                        'email' => $employee->email,
+                    ]
+                ], 422);
+            }
+
             // First punch of the day: Always Check In
-            $attendance = Attendance::create([
-                'tenant_id' => $tenantId,
-                'employee_id' => $employee->id,
-                'attendance_date' => $today,
-                'check_in' => $currentTime,
-                'status' => 'present',
-                'location_note' => $locationNote,
-                'source' => 'facial_recognition',
-                'worked_minutes' => 0,
-            ]);
-            $action = 'checked_in';
-            $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
-        } elseif ($requestedPunchType === 'auto_check_in') {
-            // Background scanning is idempotent: it can never turn a check-in into a checkout.
-            if ($attendance->check_in) {
-                $action = $attendance->check_out ? 'already_checked_out' : 'already_checked_in';
-                $message = $attendance->check_out
-                    ? "Attendance already completed for {$employee->name} today."
-                    : "{$employee->name} is already checked in today.";
-            } else {
-                $attendance->check_in = $currentTime;
-                $attendance->status = 'present';
-                $attendance->source = 'facial_recognition';
-                $attendance->save();
-                $action = 'checked_in';
-                $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
-            }
-        } elseif ($requestedPunchType === 'check_in') {
-            // Explicit Check In requested
-            if (!$attendance->check_in) {
-                $attendance->check_in = $currentTime;
-            }
-            $attendance->check_out = null;
-            $attendance->status = 'present';
-            $attendance->source = 'facial_recognition';
-            $attendance->save();
+            $attendance = Attendance::updateOrCreate(
+                [
+                    'tenant_id' => $tenantId,
+                    'employee_id' => $employee->id,
+                    'attendance_date' => $today,
+                ],
+                [
+                    'check_in' => $currentTime,
+                    'status' => 'present',
+                    'location_note' => $locationNote,
+                    'source' => 'facial_recognition',
+                    'worked_minutes' => 0,
+                ]
+            );
             $action = 'checked_in';
             $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
         } elseif ($requestedPunchType === 'check_out') {
             // Explicit Check Out requested
+            $checkOutCheck = $policy->canCheckOut($currentTime);
+            if (!$checkOutCheck['allowed']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => $checkOutCheck['message']
+                ], 422);
+            }
+
             $attendance->check_out = $currentTime;
             if ($attendance->check_in) {
                 $startTs = strtotime($attendance->check_in);
@@ -248,29 +252,33 @@ class AttendanceController extends Controller
             $action = 'checked_out';
             $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked OUT at " . $displayCurrentTime;
         } else {
-            // Auto-toggle punch logic
-            if ($attendance->check_in && !$attendance->check_out) {
-                // Currently checked in -> punch checks them OUT
-                $attendance->check_out = $currentTime;
-                $startTs = strtotime($attendance->check_in);
-                $endTs = strtotime($currentTime);
-                $diffMinutes = max(1, round(($endTs - $startTs) / 60));
-                $attendance->worked_minutes = $diffMinutes;
-                $attendance->source = 'facial_recognition';
-                $attendance->save();
+            // Automatic punch evaluation:
+            // If already checked in today and already checked out:
+            if ($attendance->check_in && $attendance->check_out) {
+                $action = 'already_checked_out';
+                $message = "Attendance already completed today for {$employee->name} (In: " . date('h:i A', strtotime($attendance->check_in)) . ", Out: " . date('h:i A', strtotime($attendance->check_out)) . ").";
+            } elseif ($attendance->check_in && !$attendance->check_out) {
+                // If it's before the configured checkout window (e.g. morning/mid-day):
+                // Do NOT check out! Reassure employee that morning attendance is already recorded.
+                $checkoutStartTs = strtotime($policy->check_out_start);
+                $nowTs = strtotime($currentTime);
 
-                $action = 'checked_out';
-                $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked OUT at " . $displayCurrentTime;
-            } else {
-                // Currently checked out (or repeat punch) -> punch checks them back IN
-                $attendance->check_in = $currentTime;
-                $attendance->check_out = null;
-                $attendance->status = 'present';
-                $attendance->source = 'facial_recognition';
-                $attendance->save();
+                if ($nowTs < $checkoutStartTs) {
+                    $action = 'already_checked_in';
+                    $message = "Morning attendance already recorded for {$employee->name} at " . date('h:i A', strtotime($attendance->check_in)) . ". Have a productive workday!";
+                } else {
+                    // Afternoon / Shift end reached: record checkout
+                    $attendance->check_out = $currentTime;
+                    $startTs = strtotime($attendance->check_in);
+                    $endTs = strtotime($currentTime);
+                    $diffMinutes = max(1, round(($endTs - $startTs) / 60));
+                    $attendance->worked_minutes = $diffMinutes;
+                    $attendance->source = 'facial_recognition';
+                    $attendance->save();
 
-                $action = 'checked_in';
-                $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked IN at " . $displayCurrentTime;
+                    $action = 'checked_out';
+                    $message = "Identity Verified for {$employee->name} ({$similarityPct}% match)! Checked OUT at " . $displayCurrentTime . ". Have a great evening!";
+                }
             }
         }
 
@@ -318,6 +326,25 @@ class AttendanceController extends Controller
         $employee = $this->currentEmployee($tenantId, $request->integer('employee_id'));
         abort_unless($employee, 404, 'No employee profile is linked to this account.');
 
+        $policy = \App\Models\AttendancePolicy::forTenant($tenantId);
+        $currentTime = date('H:i:s');
+
+        // Check if already checked in today
+        $existing = Attendance::where('tenant_id', $tenantId)
+            ->where('employee_id', $employee->id)
+            ->whereDate('attendance_date', today())
+            ->first();
+
+        if ($existing && $existing->check_in) {
+            return redirect()->back()->with('info', "You are already checked in today at " . date('h:i A', strtotime($existing->check_in)) . ". Morning attendance recorded.");
+        }
+
+        // Validate Cutoff Policy
+        $check = $policy->canCheckIn($currentTime);
+        if (!$check['allowed']) {
+            return redirect()->back()->with('error', $check['message'] . ' You can submit a Manual Attendance Request for Branch Manager approval.');
+        }
+
         $attendance = Attendance::updateOrCreate(
             [
                 'tenant_id' => $tenantId,
@@ -325,7 +352,7 @@ class AttendanceController extends Controller
                 'attendance_date' => now()->toDateString()
             ],
             [
-                'check_in' => date('H:i:s'),
+                'check_in' => $currentTime,
                 'status' => 'present',
                 'location_note' => 'You are at Office HQ (Verified Geofence).',
                 'source' => 'web_biometric'
@@ -350,7 +377,18 @@ class AttendanceController extends Controller
             return redirect()->back()->with('error', 'Check-in is required before checking out.');
         }
 
-        $attendance->check_out = now()->format('H:i:s');
+        if ($attendance->check_out) {
+            return redirect()->back()->with('info', 'You have already checked out today at ' . date('h:i A', strtotime($attendance->check_out)) . '.');
+        }
+
+        $policy = \App\Models\AttendancePolicy::forTenant($tenantId);
+        $currentTime = date('H:i:s');
+        $check = $policy->canCheckOut($currentTime);
+        if (!$check['allowed']) {
+            return redirect()->back()->with('error', $check['message']);
+        }
+
+        $attendance->check_out = $currentTime;
         $attendance->worked_minutes = max(0, round((strtotime($attendance->check_out) - strtotime($attendance->check_in)) / 60));
         $attendance->save();
 

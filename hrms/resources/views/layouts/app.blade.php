@@ -591,6 +591,10 @@
                     <i class="bi bi-camera-video"></i>
                     <span>Facial Scanner</span>
                 </a>
+                <a href="{{ route('attendance.manual.manage') }}" class="nav-link-custom {{ request()->routeIs('attendance.manual.*') ? 'active' : '' }}">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Manual Approvals</span>
+                </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
                     <i class="bi bi-person-check"></i>
                     <span>Self Check In/Out</span>
@@ -635,6 +639,10 @@
                     <i class="bi bi-person-check"></i>
                     <span>Self Check In/Out</span>
                 </a>
+                <a href="{{ route('attendance.manual.create') }}" class="nav-link-custom {{ request()->routeIs('attendance.manual.*') ? 'active' : '' }}">
+                    <i class="bi bi-pencil-square"></i>
+                    <span>Manual Attendance</span>
+                </a>
                 <a href="{{ route('leaves.apply') }}" class="nav-link-custom {{ request()->routeIs('leaves.apply') ? 'active' : '' }}">
                     <i class="bi bi-send-plus"></i>
                     <span>Apply for Leave</span>
@@ -675,9 +683,17 @@
                     <i class="bi bi-camera-video"></i>
                     <span>Facial Scanner</span>
                 </a>
+                <a href="{{ route('attendance.manual.manage') }}" class="nav-link-custom {{ request()->routeIs('attendance.manual.*') ? 'active' : '' }}">
+                    <i class="bi bi-shield-check"></i>
+                    <span>Manual Approvals</span>
+                </a>
                 <a href="{{ route('attendance.mobile') }}" class="nav-link-custom {{ request()->routeIs('attendance.mobile') ? 'active' : '' }}">
                     <i class="bi bi-person-check"></i>
                     <span>Self Check In/Out</span>
+                </a>
+                <a href="{{ route('attendance.policy.edit') }}" class="nav-link-custom {{ request()->routeIs('attendance.policy.*') ? 'active' : '' }}">
+                    <i class="bi bi-sliders"></i>
+                    <span>Timing & Cutoffs</span>
                 </a>
                 <a href="{{ route('schedule.index') }}" class="nav-link-custom {{ request()->routeIs('schedule*') ? 'active' : '' }}">
                     <i class="bi bi-calendar-week"></i>

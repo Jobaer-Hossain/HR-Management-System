@@ -62,6 +62,9 @@
             <a href="{{ route('attendance.mobile') }}" class="workspace-action primary">
                 <i class="bi bi-camera-video"></i> Attendance Punch
             </a>
+            <a href="{{ route('attendance.manual.create') }}" class="workspace-action">
+                <i class="bi bi-pencil-square"></i> Manual Attendance
+            </a>
             <a href="{{ route('leaves.apply') }}" class="workspace-action">
                 <i class="bi bi-calendar-plus"></i> Request Leave
             </a>

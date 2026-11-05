@@ -301,6 +301,9 @@
                 </div>
 
                 <div class="mt-auto pt-3">
+                    <a href="{{ route('attendance.manual.create') }}" class="btn btn-warning w-100 fw-bold py-2 mb-2 text-dark shadow-sm" style="border-radius: 10px; font-size: 0.84rem;">
+                        <i class="bi bi-pencil-square me-1"></i> Facial not working? Manual Request
+                    </a>
                     <a href="{{ route('leaves.apply') }}" class="btn btn-outline-primary w-100 fw-bold py-2" style="border-radius: 10px; font-size: 0.82rem;">
                         <i class="bi bi-send-plus me-1"></i> Apply for Time Off
                     </a>
@@ -904,9 +907,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('verifiedEmpMeta').innerText = `${data.employee.designation} • ${data.employee.department}`;
                     document.getElementById('verifiedConfidencePill').innerText = `${data.confidence} Match`;
 
-                    const punchMsg = data.action === 'checked_out'
-                        ? `<i class="bi bi-box-arrow-right me-1 text-danger"></i> Checked OUT at ${data.attendance.check_out}`
-                        : `<i class="bi bi-box-arrow-in-right me-1 text-success"></i> Checked IN at ${data.attendance.check_in}`;
+                    let punchMsg = '';
+                    if (data.action === 'already_checked_in') {
+                        punchMsg = `<i class="bi bi-info-circle-fill me-1 text-primary"></i> ${data.message}`;
+                    } else if (data.action === 'already_checked_out') {
+                        punchMsg = `<i class="bi bi-check-circle-fill me-1 text-secondary"></i> ${data.message}`;
+                    } else if (data.action === 'checked_out') {
+                        punchMsg = `<i class="bi bi-box-arrow-right me-1 text-danger"></i> Checked OUT at ${data.attendance.check_out}`;
+                    } else {
+                        punchMsg = `<i class="bi bi-box-arrow-in-right me-1 text-success"></i> Checked IN at ${data.attendance.check_in}`;
+                    }
                     document.getElementById('verifiedPunchMessage').innerHTML = punchMsg;
 
                     verifiedBanner.style.display = 'block';
@@ -920,18 +930,18 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('punchUserCode').innerText = data.employee.employee_code;
 
                     // Update Display Stats
-                    if (data.attendance.check_in && data.attendance.check_in !== '--:--') {
+                    if (data.attendance && data.attendance.check_in && data.attendance.check_in !== '--:--') {
                         document.getElementById('displayCheckInVal').innerText = data.attendance.check_in;
                     }
-                    if (data.attendance.check_out && data.attendance.check_out !== '--:--') {
+                    if (data.attendance && data.attendance.check_out && data.attendance.check_out !== '--:--') {
                         document.getElementById('displayCheckOutVal').innerText = data.attendance.check_out;
                     }
-                    if (data.attendance.worked_hours) {
+                    if (data.attendance && data.attendance.worked_hours) {
                         document.getElementById('displayHoursVal').innerText = data.attendance.worked_hours;
                     }
 
                     // Toggle Button State
-                    if (data.action === 'checked_in') {
+                    if (data.action === 'checked_in' || data.action === 'already_checked_in') {
                         punchBtn.classList.add('btn-checked-in');
                         punchText.innerText = 'Check Out';
                     } else {
@@ -939,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         punchText.innerText = 'Check In';
                     }
 
-                    cameraPrompt.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> Verified: ${data.employee.name}</span>`;
+                    cameraPrompt.innerHTML = `<span class="text-success fw-bold"><i class="bi bi-check-circle-fill"></i> ${data.message || 'Verified: ' + data.employee.name}</span>`;
 
                     // Pleasant Audio Confirmation Chime
                     try {
@@ -957,8 +967,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     } catch(e) {}
 
                 } else {
-                    alert('Verification Failed: ' + data.message);
-                    cameraPrompt.innerText = 'Verification Failed';
+                    if (data.can_request_manual) {
+                        if (confirm(data.message + '\n\nWould you like to submit a Manual Attendance Request for Branch Manager approval now?')) {
+                            window.location.href = data.manual_request_url || "{{ route('attendance.manual.create') }}";
+                            return;
+                        }
+                    } else {
+                        alert(data.message || 'Verification Failed');
+                    }
+                    cameraPrompt.innerText = data.cutoff_exceeded ? 'Check-In Cutoff Exceeded' : 'Verification Failed';
                 }
             } catch (err) {
                 console.error(err);
