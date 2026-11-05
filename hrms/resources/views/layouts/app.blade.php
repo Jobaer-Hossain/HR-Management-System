@@ -49,8 +49,31 @@
             top: 0;
             bottom: 0;
             left: 0;
+            height: 100vh;
+            max-height: 100vh;
             z-index: 1000;
-            padding: 24px 16px;
+            padding: 20px 14px 24px 14px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior: contain;
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+
+        /* Sleek Modern Scrollbar for Sidebar */
+        .sidebar::-webkit-scrollbar {
+            width: 5px;
+        }
+        .sidebar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .sidebar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
         }
 
         .main-content {
@@ -95,6 +118,7 @@
             align-items: center;
             justify-content: space-between;
             padding: 0 8px 24px 8px;
+            flex-shrink: 0;
         }
         .brand-logo {
             display: flex;
@@ -126,6 +150,7 @@
             letter-spacing: 0.08em;
             color: #94a3b8;
             margin: 16px 8px 8px 8px;
+            flex-shrink: 0;
         }
 
         .nav-link-custom {
@@ -140,6 +165,7 @@
             text-decoration: none;
             transition: all 0.15s ease;
             margin-bottom: 4px;
+            flex-shrink: 0;
         }
         .nav-link-custom:hover {
             color: #1e293b;
@@ -163,6 +189,7 @@
             margin-top: auto;
             margin-bottom: 16px;
             box-shadow: 0 10px 20px -5px rgba(37, 99, 235, 0.35);
+            flex-shrink: 0;
         }
         .upgrade-card h6 {
             font-size: 0.88rem;
@@ -202,6 +229,7 @@
             border-radius: 12px;
             text-decoration: none;
             color: inherit;
+            flex-shrink: 0;
         }
         .user-avatar {
             width: 36px;
@@ -701,8 +729,8 @@
             </div>
 
             <!-- Dynamic User Pill Based on Active Role -->
-            <div class="dropdown">
-                <a href="#" class="user-pill dropdown-toggle" data-bs-toggle="dropdown">
+            <div class="dropup flex-shrink-0 mt-2">
+                <a href="#" class="user-pill dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                     <div class="d-flex align-items-center gap-2">
                         <img src="{{ $activeRoleData['avatar'] }}" alt="{{ $activeRoleData['name'] }}" class="user-avatar">
                         <div>
